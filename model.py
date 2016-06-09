@@ -233,19 +233,37 @@ class Model(object):
         final_out = get_last_layer(result).transpose((1,0,2))
 
         loglikelihoods = T.log( final_out + EPSILON )*self.output_mat
-        self.loss = T.neg(T.sum(loglikelihoods)/T.cast(n_batch*n_time, theano.config.floatX))
+        self.full_loss = T.neg(T.sum(loglikelihoods))
 
-        updates = Adam(self.loss, self.get_params())
+        self.loss_per_timestep = self.full_loss/T.cast(n_batch*n_time, theano.config.floatX)
+        self.accuracy_per_timestep = T.exp(-self.loss_per_timestep)
+
+        self.loss_per_batch = self.full_loss/T.cast(n_batch, theano.config.floatX)
+        self.accuracy_per_batch = T.exp(-self.loss_per_batch)
+
+        num_jumps = T.sum(self.output_mat[:,:,2:])
+        self.loss_per_jump = self.full_loss/T.cast(num_jumps, theano.config.floatX)
+        self.accuracy_per_jump = T.exp(-self.loss_per_jump)
+
+        updates = Adam(self.loss_per_timestep, self.get_params())
+
+        loss_outputs = [self.full_loss,
+                        self.loss_per_timestep,
+                        self.accuracy_per_timestep,
+                        self.loss_per_batch,
+                        self.accuracy_per_batch,
+                        self.loss_per_jump,
+                        self.accuracy_per_jump]
 
         self.update_fun = theano.function(
             inputs=[self.input_mat, self.mem_shifts, self.output_mat],
-            outputs=self.loss,
+            outputs=loss_outputs,
             updates=updates,
             allow_input_downcast=True)
 
         self.eval_fun = theano.function(
             inputs=[self.input_mat, self.mem_shifts, self.output_mat],
-            outputs=self.loss,
+            outputs=loss_outputs,
             allow_input_downcast=True)
 
     def setup_generate(self):

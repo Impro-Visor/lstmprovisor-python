@@ -78,9 +78,10 @@ def train(model,leadsheets,num_updates,start=0):
     for i in range(start,start+num_updates):
         if stopflag[0]:
             break
-        loss = model.update_fun(*get_batch(leadsheets))
+        losses = model.update_fun(*get_batch(leadsheets))
         if i % 10 == 0:
-            print("update {}, loss={}".format(i,loss))
+            float_losses = [x.tolist() for x in losses]
+            print("update {}: full {}, timestep {} ({:.2f}), batch {} ({:.2f}), jump {} ({:.2f})".format(i,*float_losses))
         if i % 500 == 0 or (i % 100 == 0 and i < 1000):
             chords = get_chords(leadsheets)
             generated_out = model.generate_fun(chords)
