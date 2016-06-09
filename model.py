@@ -56,15 +56,16 @@ class OutputConversionOp(theano.Op):
     # Properties attribute
     __props__ = ()
 
-    def make_node(self, out, pos, chord):
+    def make_node(self, out, pos, chord, timestep):
         out = T.as_tensor_variable(out)
         pos = T.as_tensor_variable(pos)
         chord = T.as_tensor_variable(chord)
-        return theano.Apply(self, [out, pos, chord], [T.fmatrix(), T.ivector(), T.ivector()])
+        timestep = T.as_tensor_variable(timestep)
+        return theano.Apply(self, [out, pos, chord, timestep], [T.fmatrix(), T.ivector(), T.ivector()])
     
     # Python implementation:
     def perform(self, node, inputs_storage, output_storage):
-        out, pos, chord = inputs_storage
+        out, pos, chord, timestep = inputs_storage
 
         new_input = []
         new_shift = []
@@ -76,8 +77,10 @@ class OutputConversionOp(theano.Op):
                 n_shift = np.nonzero(c_out)[0][0]-2-relative_data.WINDOW_RADIUS
             n_pos = c_pos + n_shift
             n_chord = np.roll(c_chord, -n_pos, 0)
+            n_beat = relative_data.generate_beat(timestep)
 
             n_input = np.concatenate([
+                n_beat,
                 n_chord,
                 [relative_data.vague_position(n_pos)],
                 c_out
@@ -259,14 +262,26 @@ class Model(object):
         initial_output = T.tile(initial_output_single, (n_batch, 1))
         initial_position = T.tile(initial_position_single, (n_batch))
 
-        def step_gen(cur_chord, last_output, last_pos, *other):
-            new_input, new_shifts, new_pos = OutputConversionOp()(last_output, last_pos, cur_chord)
+        def step_gen(timestep, cur_chord, last_output, last_pos, *other):
+            new_input, new_shifts, new_pos = OutputConversionOp()(last_output, last_pos, cur_chord, timestep)
             next_stuff = self.get_step_fn(n_batch,True)(new_input, new_shifts, *other)
 
             # next_output_probs is of shape (batch, output_softmax)
             next_output_probs = next_stuff[-1]
 
-            cum_probs = T.extra_ops.cumsum(next_output_probs, 1)
+            # We want to create a mask that selects only those entries which are OK to transition to
+            jump_posns = (T.shape_padright(last_pos) + np.expand_dims(np.arange(-relative_data.WINDOW_RADIUS, relative_data.WINDOW_RADIUS+1), 0))
+            jump_mask = (jump_posns >= relative_data.LOW_BOUND) * (jump_posns <= relative_data.HIGH_BOUND)
+            mask = T.concatenate([
+                    T.ones((n_batch, 2)),
+                    jump_mask
+                ], 1)
+
+            # Now we normalize it back to a regular probability
+            masked_output_probs = mask * next_output_probs
+            fixed_output_probs = masked_output_probs / T.sum(masked_output_probs, 1, keepdims=True)
+
+            cum_probs = T.extra_ops.cumsum(fixed_output_probs, 1)
             # cum_probs = theano.printing.Print("Cumulative probs")(cum_probs)
 
             sampler = self.srng.uniform([n_batch,1])
@@ -284,7 +299,7 @@ class Model(object):
         outputs_info = ([ dict(initial=initial_output, taps=[-1]) ] + 
                         [ dict(initial=initial_position, taps=[-1]) ] + 
                         [initial_state_with_taps(layer, n_batch) for layer in self.cells.layers])
-        result, updates = theano.scan(fn=step_gen, sequences=[chord_input], outputs_info=outputs_info)
+        result, updates = theano.scan(fn=step_gen, sequences=[T.arange(n_time),chord_input], outputs_info=outputs_info)
 
         all_outputs = result[0].transpose((1,0,2))
         # all_outputs is (batch, time, chord_bits)

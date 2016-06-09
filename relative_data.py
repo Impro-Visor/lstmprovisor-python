@@ -9,17 +9,31 @@ HIGH_BOUND = 84
 
 CHORD_SIZE = 12
 
+BEAT_PERIODS = [x//constants.RESOLUTION_SCALAR for x in [
+                    constants.WHOLE,
+                    constants.HALF,
+                    constants.QUARTER,
+                    constants.EIGHTH,
+                    constants.SIXTEENTH,
+                    constants.HALF_TRIPLET,
+                    constants.QUARTER_TRIPLET,
+                    constants.EIGHTH_TRIPLET,
+                    constants.SIXTEENTH_TRIPLET,
+                ]]
+BEAT_SIZE = len(BEAT_PERIODS)
+
 WINDOW_RADIUS = 12
 WINDOW_SIZE = WINDOW_RADIUS*2+1
 
 STARTING_POSITION = 72
-INPUT_SIZE = CHORD_SIZE + 1 + 1 + 1 + WINDOW_SIZE
+INPUT_SIZE = BEAT_SIZE + CHORD_SIZE + 1 + 1 + 1 + WINDOW_SIZE
 OUTPUT_SIZE = 1 + 1 + WINDOW_SIZE
 
 """
 The relative-jump memory-shift LSTM network takes in input of the form
 
 [
+    beat x BEAT_SIZE, (where beat[i] == 1 if is on the corresp subdivision of the beat )
     chord_note x 12, (where chord_note[0] corresponds to current pitchclass)
     vague_position, (a float on -1 to 1 scaled on LOW_BOUND to HIGH_BOUND)
     did_rest,
@@ -68,6 +82,9 @@ def repeat_print_sparse(li):
 def vague_position(cur_pos):
     return (2*(cur_pos-LOW_BOUND))/(HIGH_BOUND-LOW_BOUND) - 1
 
+def generate_beat(timestep):
+    return [ (timestep % x == 0) for x in BEAT_PERIODS ]
+
 class NoteOutOfRangeException(Exception):
     pass
 
@@ -84,6 +101,7 @@ def melody_to_network_form(chords, melody):
     cur_pos = next((n for n,d in melody if n is not None)) + random.randrange(-WINDOW_RADIUS, WINDOW_RADIUS+1)
 
     input_form.append(
+        generate_beat(0) +
         chords[0] +
         [(2.0*(cur_pos-LOW_BOUND))/(HIGH_BOUND-LOW_BOUND) - 1] +
         [1] +
@@ -106,14 +124,14 @@ def melody_to_network_form(chords, melody):
         mem_shifts.append(delta)
         output_form.append(rcp)
         idx += 1
-        input_form.append( rotate(chords[idx%len(chords)], -cur_pos) + [vague_position(cur_pos)] + rcp)
+        input_form.append( generate_beat(idx) + rotate(chords[idx%len(chords)], -cur_pos) + [vague_position(cur_pos)] + rcp)
 
         for _ in range(dur-1):
             rcp = [1 if note is None else 0] + [0 if note is None else 1] + [0]*WINDOW_SIZE
             mem_shifts.append(0)
             output_form.append(rcp)
             idx += 1
-            input_form.append( rotate(chords[idx%len(chords)], -cur_pos) + [vague_position(cur_pos)] + rcp)
+            input_form.append( generate_beat(idx) + rotate(chords[idx%len(chords)], -cur_pos) + [vague_position(cur_pos)] + rcp)
 
     # Remove last input and mem shift, since they are unused (and have useless chords, anyway)
     input_form = input_form[:-1]

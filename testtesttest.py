@@ -83,8 +83,9 @@ def run_test_output_conversion():
     input_out = T.fmatrix()
     input_pos = T.ivector()
     input_chord = T.fmatrix()
-    out_ipt, out_shift, out_pos = OutputConversionOp()(input_out, input_pos, input_chord)
-    runfn = theano.function(inputs=[input_out, input_pos, input_chord],
+    input_time = T.iscalar()
+    out_ipt, out_shift, out_pos = OutputConversionOp()(input_out, input_pos, input_chord, input_time)
+    runfn = theano.function(inputs=[input_out, input_pos, input_chord, input_time],
                             outputs=[out_ipt, out_shift, out_pos],
                             allow_input_downcast=True)
 
@@ -96,18 +97,55 @@ def run_test_output_conversion():
     ], np.float32)
     my_pos = np.array([60,62,60,60], np.int32)
     my_chord = np.array([constants.CHORD_TYPES['']]*4, np.int32)
+    my_time = np.array(24, np.int32)
 
     print(my_out)
     print(my_pos)
     print(my_chord)
+    print(my_time)
     print("---------")
 
-    res = runfn(my_out,my_pos,my_chord)
+    res = runfn(my_out,my_pos,my_chord,my_time)
     for r in res:
         print(r)
 
+WINDOW_RADIUS = 3
+LOW_BOUND = 0
+HIGH_BOUND = 10
+def test_sample_adjust(last_pos, next_output_probs):
+    n_batch = last_pos.shape[0]
+    # We want to create a mask that selects only those entries which are OK to transition to
+    jump_posns = (T.shape_padright(last_pos) + np.expand_dims(np.arange(-WINDOW_RADIUS, WINDOW_RADIUS+1), 0))
+    jump_mask = (jump_posns >= LOW_BOUND) * (jump_posns <= HIGH_BOUND)
+    mask = T.concatenate([
+            T.ones((n_batch, 2)),
+            jump_mask
+        ], 1)
+
+    masked_output_probs = mask * next_output_probs
+    fixed_output_probs = masked_output_probs / T.sum(masked_output_probs, 1, keepdims=True)
+    return fixed_output_probs
 
 
+def run_test_sample_adjust():
+
+    input_pos = T.ivector()
+    input_probs = T.fmatrix()
+    out_probs = test_sample_adjust(input_pos, input_probs)
+    runfn = theano.function(inputs=[input_pos,input_probs], outputs=out_probs, allow_input_downcast=True)
+
+    my_pos = np.array([0, 2, 4, 7, 9, 10])
+    my_probs = np.array([
+        [0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.2],
+        [0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.2],
+        [0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.2],
+        [0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.2],
+        [0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.2],
+        [0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.1,0.2],
+        ])
+
+    res = runfn(my_pos, my_probs)
+    print res
 
 
 
