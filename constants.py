@@ -137,27 +137,27 @@ NOTE_OFFSETS = OrderedDict([
 CHORD_NOTE_OFFSETS = OrderedDict((k[:1].upper()+k[1:],v%12) for k,v in NOTE_OFFSETS.items())
  
 WHOLE                = 480; # slots in a whole note
-HALF                 = WHOLE/2;              # 240
-QUARTER              = WHOLE/4;              # 120
-EIGHTH               = WHOLE/8;              #  60
-SIXTEENTH            = WHOLE/16;             #  30
-THIRTYSECOND         = WHOLE/32;             #  15
+HALF                 = WHOLE//2;              # 240
+QUARTER              = WHOLE//4;              # 120
+EIGHTH               = WHOLE//8;              #  60
+SIXTEENTH            = WHOLE//16;             #  30
+THIRTYSECOND         = WHOLE//32;             #  15
     
-HALF_TRIPLET         = 2*HALF/3;             # 160
-QUARTER_TRIPLET      = 2*QUARTER/3;          #  80
-EIGHTH_TRIPLET       = 2*EIGHTH/3;           #  40
-SIXTEENTH_TRIPLET    = 2*SIXTEENTH/3;        #  20
-THIRTYSECOND_TRIPLET = 2*THIRTYSECOND/3;     #  10
+HALF_TRIPLET         = 2*HALF//3;             # 160
+QUARTER_TRIPLET      = 2*QUARTER//3;          #  80
+EIGHTH_TRIPLET       = 2*EIGHTH//3;           #  40
+SIXTEENTH_TRIPLET    = 2*SIXTEENTH//3;        #  20
+THIRTYSECOND_TRIPLET = 2*THIRTYSECOND//3;     #  10
 
-QUARTER_QUINTUPLET      = 4*QUARTER/5;       #  96
-EIGHTH_QUINTUPLET       = 4*EIGHTH/5;        #  48
-SIXTEENTH_QUINTUPLET    = 4*SIXTEENTH/5;     #  24
-THIRTYSECOND_QUINTUPLET = 4*THIRTYSECOND/5;  #  12
+QUARTER_QUINTUPLET      = 4*QUARTER//5;       #  96
+EIGHTH_QUINTUPLET       = 4*EIGHTH//5;        #  48
+SIXTEENTH_QUINTUPLET    = 4*SIXTEENTH//5;     #  24
+THIRTYSECOND_QUINTUPLET = 4*THIRTYSECOND//5;  #  12
 
-DOTTED_HALF           = 3*HALF/2;            # 360
-DOTTED_QUARTER        = 3*QUARTER/2;         # 180
-DOTTED_EIGHTH         = 3*EIGHTH/2;          #  90
-DOTTED_SIXTEENTH      = 3*SIXTEENTH/2;       #  45
+DOTTED_HALF           = 3*HALF//2;            # 360
+DOTTED_QUARTER        = 3*QUARTER//2;         # 180
+DOTTED_EIGHTH         = 3*EIGHTH//2;          #  90
+DOTTED_SIXTEENTH      = 3*SIXTEENTH//2;       #  45
 
 FOUREIGHTIETH         = 1; # WHOLE/WHOLE    #   1
 TWOFORTIETH           = 2;                   #   2
