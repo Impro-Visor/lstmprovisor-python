@@ -88,7 +88,7 @@ def generate_beat(timestep):
 class NoteOutOfRangeException(Exception):
     pass
 
-def melody_to_network_form(chords, melody):
+def melody_to_network_form(chords, melody, verbose=False):
     """
     Given chords and melody, produce the input, memshift, and output arrays
     """
@@ -116,7 +116,14 @@ def melody_to_network_form(chords, melody):
             delta = note - cur_pos
             cur_pos = note
         if not (-WINDOW_RADIUS <= delta <= WINDOW_RADIUS):
-            raise NoteOutOfRangeException("Jump of size {} from {} to {} not allowed.".format(delta, note-delta, note), delta, note-delta, note)
+            olddelta = delta
+            if delta>0:
+                delta = delta % WINDOW_RADIUS
+            else:
+                delta = -(-delta % WINDOW_RADIUS)
+            if verbose:
+                print("WARNING: Jump of size {} from {} to {} not allowed. Substituting jump of size {}".format(olddelta, note-olddelta, note, delta))
+            # raise NoteOutOfRangeException("Jump of size {} from {} to {} not allowed.".format(delta, note-delta, note), delta, note-delta, note)
 
         rcp = ([1 if note is None else 0] +
             [0] +

@@ -43,7 +43,7 @@ def repeat_print(li):
             lastct = 1
 
 
-def parse_chord(cstr):
+def parse_chord(cstr,verbose=False):
     """
     Given a string representation of a chord, return a binary representation
     as a list of length 12, starting with C.
@@ -54,7 +54,12 @@ def parse_chord(cstr):
     root_note = chord_match.group(1)
     ctype = chord_match.group(2)
 
-    ctype_vec = constants.CHORD_TYPES[ctype]
+    try:
+        ctype_vec = constants.CHORD_TYPES[ctype]
+    except KeyError:
+        if(verbose):
+            print("WARNING: Could not find chord {}, substituting NC".format(cstr))
+        ctype_vec = constants.CHORD_TYPES['NC']
     root_offset = constants.CHORD_NOTE_OFFSETS[root_note]
 
     return rotate(ctype_vec, root_offset)
@@ -107,7 +112,7 @@ def parse_note(nstr):
     return (midival, duration)
 
 
-def parse_leadsheet(fn):
+def parse_leadsheet(fn,verbose=False):
     with open(fn,'r') as f:
         contents = "\n".join(f.readlines())
     parsed = sexpdata.loads("({})".format(contents))
@@ -126,7 +131,7 @@ def parse_leadsheet(fn):
             partial_measure = []
         else:
             if c != "/":
-                last_chord = parse_chord(c)
+                last_chord = parse_chord(c,verbose)
             partial_measure.append(last_chord)
 
     melody_raw = [x for x in no_meta if x[0].islower()]
@@ -143,7 +148,7 @@ def parse_leadsheet(fn):
     clen = len(chords)
     mlen = sum(dur for n,dur in melody)
     # Might have multiple melodies over the same chords
-    assert mlen % clen == 0, "Notes and chords don't match: {}, {}".format(clen,mlen)
+    # assert mlen % clen == 0, "Notes and chords don't match: {}, {}".format(clen,mlen)
 
     return chords, melody
 

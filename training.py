@@ -10,6 +10,8 @@ import relative_data
 
 import pickle as pickle
 
+import traceback
+
 BATCH_SIZE = 10
 SEGMENT_STEP = constants.WHOLE//constants.RESOLUTION_SCALAR
 SEGMENT_LEN = 4*SEGMENT_STEP
@@ -25,11 +27,11 @@ def check_leadsheets(leadsheets):
     good = []
     for lsfn in leadsheets:
         try:
-            relative_data.melody_to_network_form(*leadsheet.parse_leadsheet(lsfn))
+            print("Checking {}".format(lsfn))
+            relative_data.melody_to_network_form(*leadsheet.parse_leadsheet(lsfn,verbose=True),verbose=True)
             good.append(lsfn)
-        except relative_data.NoteOutOfRangeException as e:
-            print("In ", lsfn)
-            print(e.args[0])
+        except Exception as e:
+            traceback.print_exc()
     print("Found {} good out of {}.".format(len(good), len(leadsheets)))
     return good
 
@@ -68,14 +70,14 @@ def get_chords(leadsheets):
 
     return np.array(chords_input, np.float32)
 
-def train(model,leadsheets,num_updates,start=0):
+def train(model,leadsheets,num_updates,outputdir,start=0):
     stopflag = [False]
     def signal_handler(signame, sf):
         stopflag[0] = True
         print("Caught interrupt, waiting until safe. Press again to force terminate")
         signal.signal(signal.SIGINT, old_handler)
     old_handler = signal.signal(signal.SIGINT, signal_handler)
-    for i in range(start,start+num_updates):
+    for i in range(start+1,start+num_updates+1):
         if stopflag[0]:
             break
         losses = model.update_fun(*get_batch(leadsheets))
@@ -87,7 +89,7 @@ def train(model,leadsheets,num_updates,start=0):
             generated_out = model.generate_fun(chords)
             for samplenum, (out, chords) in enumerate(zip((generated_out != 0).astype(np.int8).tolist(), (chords != 0).astype(np.int8).tolist())):
                 melody = relative_data.output_form_to_melody(out)
-                leadsheet.write_leadsheet(chords, melody, 'output/sample{}_{}.ls'.format(i, samplenum))
-            pickle.dump(model.learned_config,open('output/params{}.p'.format(i), 'wb'))
+                leadsheet.write_leadsheet(chords, melody, os.path.join(outputdir, 'sample{}_{}.ls'.format(i, samplenum)))
+            pickle.dump(model.learned_config,open(os.path.join(outputdir, 'params{}.p'.format(i)), 'wb'))
     if not stopflag[0]:
         signal.signal(signal.SIGINT, old_handler)
