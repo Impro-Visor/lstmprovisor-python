@@ -123,7 +123,7 @@ class Model(object):
         self.cells = StackedCells( self.input_size, celltype=LSTM, layers = self.tot_layer_sizes )
         self.cells.layers.append(Layer(self.tot_layer_sizes[-1], self.output_size, activation = lambda x:x))
 
-        self.srng = T.shared_randomstreams.RandomStreams(np.random.randint(0, 1024))
+        self.srng = theano.sandbox.rng_mrg.MRG_RandomStreams(np.random.randint(0, 1024))
 
         if setup:
             print("Setting up train")

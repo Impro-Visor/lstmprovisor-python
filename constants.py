@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import numpy as np
 
 CHORD_TYPES = {
     '':                 [1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0],
@@ -168,3 +169,6 @@ RESOLUTION_SCALAR = 10;
 
 MIDDLE_C_MIDI = 60
 OCTAVE = 12
+
+
+EPSILON = np.finfo(np.float32).tiny

@@ -268,7 +268,7 @@ def write_leadsheet(chords, melody, filename=None):
     Convert chords and a melody to a leadsheet file
     """
     full_leadsheet = """
-(section (style no-style-but-swing))
+(section (style swing))
 
 {}
 
