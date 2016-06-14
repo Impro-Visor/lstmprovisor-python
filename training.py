@@ -4,9 +4,7 @@ import random
 import signal
 
 import leadsheet
-import model
 import constants
-import relative_data
 
 import pickle as pickle
 
@@ -23,52 +21,20 @@ GEN_SEGMENT_LEN = SEGMENT_LEN
 def find_leadsheets(dirpath):
     return [os.path.join(dirpath, fname) for fname in os.listdir(dirpath) if fname[-3:] == '.ls']
 
-def check_leadsheets(leadsheets):
-    good = []
-    for lsfn in leadsheets:
-        try:
-            print("Checking {}".format(lsfn))
-            relative_data.melody_to_network_form(*leadsheet.parse_leadsheet(lsfn,verbose=True),verbose=True)
-            good.append(lsfn)
-        except Exception as e:
-            traceback.print_exc()
-    print("Found {} good out of {}.".format(len(good), len(leadsheets)))
-    return good
-
 def get_batch(leadsheets):
+    """
+    Get a batch
+
+    returns: chords, melodies
+    """
     sample_fns = random.sample(leadsheets, BATCH_SIZE)
     loaded_samples = [leadsheet.parse_leadsheet(lsfn) for lsfn in sample_fns]
-
-    network_input = [relative_data.melody_to_network_form(c,m) for c,m in loaded_samples]
-    input_form, mem_shifts, output_form = list(zip(*network_input))
-
-    sample_lengths = [len(x) for x in mem_shifts]
-    # print sample_lengths
+    sample_lengths = [leadsheet.get_leadsheet_length(c,m) for c,m in loaded_samples]
 
     starts = [(0 if l==SEGMENT_LEN else random.randrange(0,l-SEGMENT_LEN,SEGMENT_STEP)) for l in sample_lengths]
+    sliced = [leadsheet.slice_leadsheet(c,m,s,s+SEGMENT_LEN) for (c,m),s in zip(loaded_samples, starts)]
 
-    segment_ipt = [x[s:s+SEGMENT_LEN] for x,s in zip(input_form, starts)]
-    segment_shifts = [x[s:s+SEGMENT_LEN] for x,s in zip(mem_shifts, starts)]
-    segment_opt = [x[s:s+SEGMENT_LEN] for x,s in zip(output_form, starts)]
-
-
-    segment_ipt = np.array(segment_ipt,np.float32)
-    segment_shifts = np.array(segment_shifts,np.int32)
-    segment_opt = np.array(segment_opt,np.float32)
-
-    return segment_ipt, segment_shifts, segment_opt
-
-def get_chords(leadsheets):
-    sample_fns = random.sample(leadsheets, GEN_BATCH_SIZE)
-    loaded_samples = [leadsheet.parse_leadsheet(lsfn) for lsfn in sample_fns]
-
-    chords = [c for c,m in loaded_samples]
-    sample_lengths = [len(x) for x in chords]
-    starts = [(0 if l==GEN_SEGMENT_LEN else random.randrange(0,l-GEN_SEGMENT_LEN,GEN_SEGMENT_STEP)) for l in sample_lengths]
-
-    chords_input = [x[s:s+SEGMENT_LEN] for x,s in zip(chords, starts)]
-
-    return np.array(chords_input, np.float32)
+    return zip(*sliced)
 
 def train(model,leadsheets,num_updates,outputdir,start=0):
     stopflag = [False]
@@ -80,16 +46,19 @@ def train(model,leadsheets,num_updates,outputdir,start=0):
     for i in range(start+1,start+num_updates+1):
         if stopflag[0]:
             break
-        losses = model.update_fun(*get_batch(leadsheets))
+        loss, infos = model.train(*get_batch(leadsheets))
+        with open(os.path.join(outputdir,'data.csv'),'a') as f:
+            if i == 1:
+                f.write("iter, loss, ".format(i,loss) + ", ".join(k for k,v in sorted(infos.items())) + "\n")
+            f.write("{}, {}, ".format(i,loss) + ", ".join(str(v) for k,v in sorted(infos.items())) + "\n")
         if i % 10 == 0:
             float_losses = [x.tolist() for x in losses]
-            print("update {}: full {}, timestep {} ({:.2f}), batch {} ({:.2f}), jump {} ({:.2f})".format(i,*float_losses))
+            print("update {}: {}, info {}".format(i,loss,infos))
         if i % 500 == 0 or (i % 100 == 0 and i < 1000):
-            chords = get_chords(leadsheets)
-            generated_out = model.generate_fun(chords)
-            for samplenum, (out, chords) in enumerate(zip((generated_out != 0).astype(np.int8).tolist(), (chords != 0).astype(np.int8).tolist())):
-                melody = relative_data.output_form_to_melody(out)
+            chords = get_batch(leadsheets)[0]
+            generated_out = model.generate(chords)
+            for samplenum, (melody, chords) in enumerate(generated_out, chords):
                 leadsheet.write_leadsheet(chords, melody, os.path.join(outputdir, 'sample{}_{}.ls'.format(i, samplenum)))
-            pickle.dump(model.learned_config,open(os.path.join(outputdir, 'params{}.p'.format(i)), 'wb'))
+            pickle.dump(model.params,open(os.path.join(outputdir, 'params{}.p'.format(i)), 'wb'))
     if not stopflag[0]:
         signal.signal(signal.SIGINT, old_handler)

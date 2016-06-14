@@ -7,6 +7,8 @@ import itertools
 import constants
 from functools import reduce
 
+import numpy as np
+
 def rotate(li, x):
     """
     Rotate list li by x spaces to the right, i.e.
@@ -151,6 +153,38 @@ def parse_leadsheet(fn,verbose=False):
     # assert mlen % clen == 0, "Notes and chords don't match: {}, {}".format(clen,mlen)
 
     return chords, melody
+
+def get_leadsheet_length(chords, melody):
+    return sum(dur for n,dur in melody)
+
+def slice_leadsheet(chords, melody, start, end):
+
+    sliced_melody_start = []
+    sliced_melody_full = []
+
+    timestep = 0
+    for n,dur in melody:
+        if start-dur < timestep <= start:
+            sliced_melody_start.append((n,timestep+dur-start))
+        elif start < timestep:
+            sliced_melody_start.append((n,dur))
+        timestep += dur
+
+    timestep = start
+    for n,dur in sliced_melody_start:
+        if timestep < end-dur:
+            sliced_melody_full.append((n,dur))
+        elif end-dur <= timestep < end:
+            sliced_melody_full.append((n,end-timestep))
+        timestep += dur
+
+    sliced_chords = [chords[i%len(chords)] for i in range(start,end)]
+
+    clen = len(sliced_chords)
+    mlen = sum(dur for n,dur in sliced_melody_full)
+    assert clen == mlen
+
+    return sliced_chords, sliced_melody_full
 
 def write_duration(duration):
     """
