@@ -1,5 +1,5 @@
-from simple_rel_model import SimpleModel
-from note_encodings import RelativeJumpEncoding
+from models import SimpleModel, ProductOfExpertsModel
+from note_encodings import RelativeJumpEncoding, ChordRelativeEncoding
 import leadsheet
 import training
 import pickle
@@ -13,7 +13,9 @@ import relative_data
 def main(dataset="dataset", outputdir="output"):
     # (100,10),(100,10)
     # (300,20),(300,20)
-    m = SimpleModel(RelativeJumpEncoding(), [(200,10),(200,10)], dropout=0.5, setup=True)
+    m = ProductOfExpertsModel([RelativeJumpEncoding(), ChordRelativeEncoding()], [[(200,10),(200,10)], [(200,10),(200,10)]], ["drop","roll"], dropout=0.5, setup=False)
+    m.setup_generate()
+    m.setup_train()
 
     leadsheets = training.find_leadsheets(dataset)
 

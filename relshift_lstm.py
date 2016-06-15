@@ -15,7 +15,7 @@ class RelativeShiftLSTMStack( object ):
     Manages a stack of LSTM cells with potentially a relative shift applied
     """
 
-    def __init__(self, input_parts, layer_sizes, output_size, window_size=0, dropout=0):
+    def __init__(self, input_parts, layer_sizes, output_size, window_size=0, dropout=0, mode="drop"):
         """
         Parameters:
             input_parts: A list of InputParts
@@ -26,6 +26,7 @@ class RelativeShiftLSTMStack( object ):
                     Alternately can just be [ indep, ... ]
             output_size: An integer, the width of the desired output
             dropout: How much dropout to apply.
+            mode: Either "drop" or "roll". If drop, discard memory that goes out of range. If roll, roll it instead
         """
 
         self.input_parts = input_parts
@@ -42,6 +43,9 @@ class RelativeShiftLSTMStack( object ):
 
         self.cells = StackedCells( self.input_size, celltype=LSTM, activation=T.tanh, layers = self.tot_layer_sizes )
         self.cells.layers.append(Layer(self.tot_layer_sizes[-1], self.output_size, activation = lambda x:x))
+
+        assert mode in ("drop", "roll"), "Must specify either drop or roll mode"
+        self.mode = mode
 
     @property
     def params(self):
@@ -86,22 +90,25 @@ class RelativeShiftLSTMStack( object ):
             # per_note_mem is (batch, per_note_mem)
             separated_mem = per_note_mem.reshape((n_batch, self.window_size, per_note))
             # separated_mem is (batch, note, mem)
-            # [a b c ... x y z] shifted up 1 goes to   [b c ... x y z 0]
-            # [a b c ... x y z] shifted down 1 goes to [0 a b c ... x y]
-            def _drop_shift_step(c_mem, c_shift):
+            # [a b c ... x y z] shifted up 1   (+1) goes to  [b c ... x y z 0]
+            # [a b c ... x y z] shifted down 1 (-1) goes to [0 a b c ... x y]
+            def _shift_step(c_mem, c_shift):
                 # c_mem is (note, mem)
                 # c_shift is an int
-                def _clamp_w(x):
-                    return T.maximum(0,T.minimum(x,self.window_size))
-                ins_at_front = T.zeros((_clamp_w(-c_shift),per_note))
-                ins_at_back = T.zeros((_clamp_w(c_shift),per_note))
-                take_part = c_mem[_clamp_w(c_shift):self.window_size-_clamp_w(-c_shift),:]
-                return T.concatenate([ins_at_front, take_part, ins_at_back], 0)
+                if self.mode=="drop":
+                    def _clamp_w(x):
+                        return T.maximum(0,T.minimum(x,self.window_size))
+                    ins_at_front = T.zeros((_clamp_w(-c_shift),per_note))
+                    ins_at_back = T.zeros((_clamp_w(c_shift),per_note))
+                    take_part = c_mem[_clamp_w(c_shift):self.window_size-_clamp_w(-c_shift),:]
+                    return T.concatenate([ins_at_front, take_part, ins_at_back], 0)
+                elif self.mode=="roll":
+                    return T.roll(c_mem, -c_shift, axis=0)
 
 
             # separated_mem = theano.printing.Print("separated_mem",['shape'])(separated_mem)
             # shifts = theano.printing.Print("shifts",['shape'])(shifts)
-            shifted_mem, _ = theano.map(_drop_shift_step, [separated_mem, shifts])
+            shifted_mem, _ = theano.map(_shift_step, [separated_mem, shifts])
 
             new_per_note_mem = shifted_mem.reshape((n_batch, self.window_size * per_note))
             new_layer_hiddens = T.concatenate([indep_mem, new_per_note_mem, remaining_values], 1)
