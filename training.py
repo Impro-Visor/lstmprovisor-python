@@ -11,6 +11,7 @@ import pickle as pickle
 import traceback
 
 BATCH_SIZE = 10
+BATCH_SIZE = 2
 SEGMENT_STEP = constants.WHOLE//constants.RESOLUTION_SCALAR
 SEGMENT_LEN = 4*SEGMENT_STEP
 
@@ -34,7 +35,7 @@ def get_batch(leadsheets):
     starts = [(0 if l==SEGMENT_LEN else random.randrange(0,l-SEGMENT_LEN,SEGMENT_STEP)) for l in sample_lengths]
     sliced = [leadsheet.slice_leadsheet(c,m,s,s+SEGMENT_LEN) for (c,m),s in zip(loaded_samples, starts)]
 
-    return zip(*sliced)
+    return list(zip(*sliced))
 
 def train(model,leadsheets,num_updates,outputdir,start=0):
     stopflag = [False]
@@ -52,12 +53,11 @@ def train(model,leadsheets,num_updates,outputdir,start=0):
                 f.write("iter, loss, ".format(i,loss) + ", ".join(k for k,v in sorted(infos.items())) + "\n")
             f.write("{}, {}, ".format(i,loss) + ", ".join(str(v) for k,v in sorted(infos.items())) + "\n")
         if i % 10 == 0:
-            float_losses = [x.tolist() for x in losses]
             print("update {}: {}, info {}".format(i,loss,infos))
-        if i % 500 == 0 or (i % 100 == 0 and i < 1000):
+        if i % 500 == 0 or (i % 100 == 0 and i < 1000) or i==1:
             chords = get_batch(leadsheets)[0]
             generated_out = model.generate(chords)
-            for samplenum, (melody, chords) in enumerate(generated_out, chords):
+            for samplenum, (melody, chords) in enumerate(zip(generated_out, chords)):
                 leadsheet.write_leadsheet(chords, melody, os.path.join(outputdir, 'sample{}_{}.ls'.format(i, samplenum)))
             pickle.dump(model.params,open(os.path.join(outputdir, 'params{}.p'.format(i)), 'wb'))
     if not stopflag[0]:

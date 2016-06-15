@@ -51,7 +51,7 @@ def parse_chord(cstr,verbose=False):
     as a list of length 12, starting with C.
     """
     if cstr == "NC":
-        return constants.CHORD_TYPES["NC"]
+        return 0, constants.CHORD_TYPES["NC"]
     chord_match = re.match(r"([A-G](?:#|b)?)(.*)", cstr)
     root_note = chord_match.group(1)
     ctype = chord_match.group(2)
@@ -64,7 +64,7 @@ def parse_chord(cstr,verbose=False):
         ctype_vec = constants.CHORD_TYPES['NC']
     root_offset = constants.CHORD_NOTE_OFFSETS[root_note]
 
-    return rotate(ctype_vec, root_offset)
+    return root_offset, ctype_vec
 
 def parse_duration(durstr):
     accum_dur = 0
@@ -108,6 +108,10 @@ def parse_note(nstr):
         midival = None
     else:
         midival = constants.MIDDLE_C_MIDI + (constants.OCTAVE * octaveshift) + constants.NOTE_OFFSETS[note]
+        while midival >= constants.HIGH_BOUND:
+            midival -= 12
+        while midival < constants.LOW_BOUND:
+            midival += 12
 
     duration = parse_duration(duration_str)
 
@@ -269,20 +273,18 @@ def write_chords(chords):
                 partial_measure[-1][1] += 1
             else:
                 last_seen = chord
-                if chord == constants.CHORD_TYPES["NC"]:
+                root,ctype = chord
+                if ctype == constants.CHORD_TYPES["NC"]:
                     chord_str = "NC"
                 else:
-                    for offset in range(12):
-                        rotated = rotate(chord,-offset)
-                        if rotated in list(constants.CHORD_TYPES.values()):
-                            t_idx = list(constants.CHORD_TYPES.values()).index(rotated)
-                            ctype = list(constants.CHORD_TYPES.keys())[t_idx]
+                    if ctype in list(constants.CHORD_TYPES.values()):
+                        t_idx = list(constants.CHORD_TYPES.values()).index(ctype)
+                        ctype_s = list(constants.CHORD_TYPES.keys())[t_idx]
 
-                            r_idx = list(constants.CHORD_NOTE_OFFSETS.values()).index(offset)
-                            root = list(constants.CHORD_NOTE_OFFSETS.keys())[r_idx]
+                        r_idx = list(constants.CHORD_NOTE_OFFSETS.values()).index(root)
+                        root_s = list(constants.CHORD_NOTE_OFFSETS.keys())[r_idx]
 
-                            chord_str = root + ctype
-                            break
+                        chord_str = root_s + ctype_s
                     else:
                         print("Not a valid chord!")
                         chord_str = "NC"

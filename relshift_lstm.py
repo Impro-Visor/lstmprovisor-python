@@ -6,6 +6,10 @@ import numpy as np
 from theano_lstm import LSTM, StackedCells, Layer, MultiDropout
 from util import *
 
+from collections import namedtuple
+
+SampleScanSpec = namedtuple('SampleScanSpec', ['sequences', 'non_sequences', 'outputs_info', 'num_taps', 'kwargs_keys', 'deterministic_dropout', 'start_pos'])
+
 class RelativeShiftLSTMStack( object ):
     """
     Manages a stack of LSTM cells with potentially a relative shift applied
@@ -87,11 +91,16 @@ class RelativeShiftLSTMStack( object ):
             def _drop_shift_step(c_mem, c_shift):
                 # c_mem is (note, mem)
                 # c_shift is an int
-                ins_at_front = T.zeros((T.maximum(0,-c_shift),per_note))
-                ins_at_back = T.zeros((T.maximum(0,c_shift),per_note))
-                take_part = c_mem[T.maximum(0,c_shift):self.window_size-T.maximum(0,-c_shift),:]
+                def _clamp_w(x):
+                    return T.maximum(0,T.minimum(x,self.window_size))
+                ins_at_front = T.zeros((_clamp_w(-c_shift),per_note))
+                ins_at_back = T.zeros((_clamp_w(c_shift),per_note))
+                take_part = c_mem[_clamp_w(c_shift):self.window_size-_clamp_w(-c_shift),:]
                 return T.concatenate([ins_at_front, take_part, ins_at_back], 0)
 
+
+            # separated_mem = theano.printing.Print("separated_mem",['shape'])(separated_mem)
+            # shifts = theano.printing.Print("shifts",['shape'])(shifts)
             shifted_mem, _ = theano.map(_drop_shift_step, [separated_mem, shifts])
 
             new_per_note_mem = shifted_mem.reshape((n_batch, self.window_size * per_note))
@@ -171,6 +180,137 @@ class RelativeShiftLSTMStack( object ):
 
         return final_out
 
+    def prepare_sample_scan(self, start_pos, start_out, deterministic_dropout=False, **kwargs):
+        """
+        Prepare a sample scan
+
+        Parameters:
+            kwargs[k]: should be a theano tensor of shape (n_batch, n_time, ... )
+                Note that "relative_position" should be a keyword argument given here if there are relative
+                shifts.
+            start_pos: a theano tensor of shape (n_batch) giving the initial position passed to the
+                out_to_in function
+            start_out: a theano tensor of shape (n_batch, X) giving the initial "output" passed
+                to the out_to_in_fn
+            deterministic_dropout: If True, apply dropout deterministically, scaling everything. If false,
+                sample dropout
+
+        Returns:
+            A namedtuple, where
+                sequences: a list of sequences to input into scan
+                non_sequences: a list of non_sequences into scan
+                outputs_info: a list of outputs_info for scan
+                num_taps: the number of outputs with taps for this 
+                (other values): for internal use
+        """
+        assert len(kwargs)>0, "Need at least one input argument!"
+        n_batch, n_time = list(kwargs.values())[0].shape[:2]
+
+        transp_kwargs = {
+            k: v.dimshuffle((1,0) + tuple(range(2,v.ndim))) for k,v in kwargs.items()
+        }
+
+        if self.dropout and not deterministic_dropout:
+            dropout_masks = MultiDropout( [(n_batch, shape) for shape in self.tot_layer_sizes], self.dropout)
+        else:
+            dropout_masks = []
+
+        outputs_info = [{"initial":start_pos, "taps":[-1]}, {"initial":start_out, "taps":[-1]}] + [initial_state_with_taps(layer, n_batch) for layer in self.cells.layers]
+        sequences = list(transp_kwargs.values())
+        non_sequences = dropout_masks
+        num_taps = len([True for x in outputs_info if x is not None])
+        return SampleScanSpec(sequences=sequences, non_sequences=non_sequences, outputs_info=outputs_info, num_taps=num_taps, kwargs_keys=list(transp_kwargs.keys()), deterministic_dropout=deterministic_dropout, start_pos=start_pos)
+
+
+    def sample_scan_routine(self, spec, *inputs):
+        """
+        Start a scan routine. This is implemented as a generator, since we may need to interrupt the state in the
+        middle of iteration. How to use:
+
+        scan_rout = x.sample_scan_routine(spec, *inputs)
+                - spec: The SampleScanSpec returned by prepare_sample_scan
+                - *inputs: The scan inputs, in [ sequences..., taps..., non_sequences... ] order
+
+        last_rel_pos, last_out, cur_kwargs = scan_rout.send(None)
+                - last_rel_pos is a theano tensor of shape (n_batch)
+                - last_out will be a theano tensor of shape (n_batch, output_size)
+                - cur_kwargs[k] is a theano tensor of shape (n_batch, ...), from kwargs
+
+        out_activations = scan_rout.send((new_pos, addtl_kwargs))
+                - new_pos is a theano tensor of shape (n_batch), giving the new relative position
+                - addtl_kwargs[k] is a theano tensor of shape (n_batch, ...) to be added to cur kwargs
+                    Note that "relative_position" will be added automatically.
+
+        scan_outputs = scan_rout.send(new_out)
+                - new_out is a tensor of shape (n_batch, X) to be output
+
+        scan_rout.close()
+
+        -> scan_outputs should be returned back to scan
+        """
+        stuff = list(inputs)
+        I = len(spec.kwargs_keys)
+        kwarg_seq_vals = stuff[:I]
+        cur_kwargs = {k:v for k,v in zip(spec.kwargs_keys, kwarg_seq_vals)}
+        last_pos, last_out = stuff[I:I+2]
+        other = stuff[I+2:]
+
+        if not self.dropout:
+            masks = []
+            hiddens = other
+        elif spec.deterministic_dropout:
+            masks = [1 - self.dropout for layer in self.cells.layers]
+            masks[0] = None
+            hiddens = other
+        else:
+            split = -len(self.tot_layer_sizes)
+            hiddens = other[:split]
+            masks = [None] + other[split:]
+
+        cur_pos, addtl_kwargs = yield(last_pos, last_out, cur_kwargs)
+        # cur_pos = theano.printing.Print("cur_pos",['shape','__str__'])(cur_pos)
+        # last_pos = theano.printing.Print("last_pos",['shape','__str__'])(last_pos)
+        shift = cur_pos - last_pos
+
+        all_kwargs = {
+            "relative_position": cur_pos
+        }
+        all_kwargs.update(cur_kwargs)
+        all_kwargs.update(addtl_kwargs)
+
+        # all_kwargs = {
+            # k: theano.printing.Print("all_kwargs["+k+"]",['shape'])(v) for k,v in all_kwargs.items()
+        # }
+
+        full_input = T.concatenate([ part.generate(**all_kwargs) for part in self.input_parts ], 1)
+        # full_input = theano.printing.Print("full_input",['shape'])(full_input)
+        # shift = theano.printing.Print("shift",['shape','__str__'])(shift)
+        # hiddens = [theano.printing.Print("hiddens[{}]".format(i),['shape'])(hiddens[i]) for i in range(len(hiddens))]
+
+        step_stuff = self.perform_step(full_input, shift, hiddens, dropout_masks=masks)
+        new_hiddens = step_stuff[:-1]
+        raw_output = step_stuff[-1]
+        sampled_output = yield(raw_output)
+
+        yield [cur_pos, sampled_output] + step_stuff
+
+    def extract_sample_scan_results(self, spec, outputs):
+        """
+        Extract outputs from the scan results. 
+
+        Parameters:
+            outputs: The outputs from the scan associated with this stack
+
+        Returns:
+            positions, raw_output, sampled_output
+        """
+        positions = T.concatenate([T.shape_padright(spec.start_pos), outputs[0].transpose((1,0))[:,:-1]], 1)
+        sampled_output = outputs[2].transpose((1,0,2))
+        raw_output = outputs[-1].transpose((1,0,2))
+
+        return positions, raw_output, sampled_output
+
+
     def do_sample_scan(self, start_pos, start_out, sample_fn, out_to_in_fn, deterministic_dropout=True, **kwargs):
         """
         Run a scan using this LSTM, sampling and processing as we go.
@@ -205,66 +345,19 @@ class RelativeShiftLSTMStack( object ):
 
         Returns: positions, raw_output, sampled_output, updates
         """
-
-        assert len(kwargs)>0, "Need at least one input argument!"
-        n_batch, n_time = list(kwargs.values())[0].shape[:2]
-
-        transp_kwargs = {
-            k: v.dimshuffle((1,0) + tuple(range(2,v.ndim))) for k,v in kwargs.items()
-        }
+        raise NotImplementedError()
+        spec = self.prepare_sample_scan(start_pos, start_out, sample_fn, deterministic_dropout, **kwargs)
 
         def _scan_fn(*stuff):
-            """
-            stuff will be [ kwarg_sequences..., cur_pos, last_shift, last_out, hiddens..., masks?... ]
-            """
-            stuff = list(stuff)
-            I = len(transp_kwargs)
-            kwarg_seq_vals = stuff[:I]
-            cur_kwargs = {k:v for k,v in zip(transp_kwargs.keys(), kwarg_seq_vals)}
-            cur_pos, last_shift, last_out = stuff[I:I+3]
-            other = stuff[I+3:]
+            scan_rout = self.sample_scan_routine(spec, *stuff)
+            rel_pos, last_out, cur_kwargs = scan_rout.send(None)
+            addtl_kwargs = out_to_in_fn(rel_pos, last_out, **cur_kwargs)
+            out_activations = scan_rout.send(addtl_kwargs)
+            sampled_output, new_pos = sample_fn(out_activations, rel_pos)
+            scan_outputs = scan_rout.send((sampled_output, new_pos))
+            scan_rout.close()
+            return scan_outputs
 
-            if not self.dropout:
-                masks = []
-                hiddens = other
-            elif deterministic_dropout:
-                masks = [1 - self.dropout for layer in self.cells.layers]
-                masks[0] = None
-                hiddens = other
-            else:
-                split = -len(self.tot_layer_sizes)
-                hiddens = other[:split]
-                masks = [None] + other[split:]
-
-            addtl_kwargs = out_to_in_fn(cur_pos, last_out, **cur_kwargs)
-
-            all_kwargs = {
-                "relative_position": cur_pos
-            }
-            all_kwargs.update(cur_kwargs)
-            all_kwargs.update(addtl_kwargs)
-
-            full_input = T.concatenate([ part.generate(**all_kwargs) for part in self.input_parts ], 1)
-
-            step_stuff = self.perform_step(full_input, last_shift, hiddens, dropout_masks=masks)
-            new_hiddens = step_stuff[:-1]
-            raw_output = step_stuff[-1]
-            sampled_output, new_pos = sample_fn(raw_output, cur_pos)
-
-            new_shift = new_pos - cur_pos
-
-            return [new_pos, new_shift, sampled_output] + step_stuff
-
-        if self.dropout and not deterministic_dropout:
-            dropout_masks = MultiDropout( [(n_batch, shape) for shape in self.tot_layer_sizes], self.dropout)
-        else:
-            dropout_masks = []
-
-        outputs_info = [{"initial":start_pos, "taps":[-1]}, {"initial":T.zeros_like(start_pos), "taps":[-1]}, {"initial":start_out, "taps":[-1]}] + [initial_state_with_taps(layer, n_batch) for layer in self.cells.layers]
-        result, updates = theano.scan(fn=_scan_fn, sequences=list(transp_kwargs.values()), non_sequences=dropout_masks, outputs_info=outputs_info)
-
-        positions = T.concatenate([T.shape_padright(start_pos), result[0].transpose((1,0))[:,:-1]], 1)
-        sampled_output = result[2].transpose((1,0,2))
-        raw_output = result[-1].transpose((1,0,2))
-
+        result, updates = theano.scan(fn=_scan_fn, sequences=spec.sequences, non_sequences=spec.non_sequences, outputs_info=spec.outputs_info)
+        positions, raw_output, sampled_output = self.extract_sample_scan_results(spec, result)
         return positions, raw_output, sampled_output, updates
