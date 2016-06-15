@@ -19,7 +19,7 @@ def main(dataset="dataset", outputdir="output"):
 
     leadsheets = training.find_leadsheets(dataset)
 
-    training.train(m, leadsheets, 1, outputdir)
+    training.train(m, leadsheets, 50000, outputdir)
 
     pickle.dump( m.params, open( os.path.join(outputdir, "final_params.p"), "wb" ) )
 

@@ -74,7 +74,6 @@ class SimpleModel(object):
                                                              deterministic_dropout=det_dropout)
 
             out_probs = self.encoding.decode_to_probs(activations, relative_pos, constants.LOW_BOUND, constants.HIGH_BOUND)
-            out_probs = theano.printing.Print("out_probs")(out_probs)
             return Encoding.compute_loss(out_probs, correct_notes, True)
 
         train_loss, train_info = _build(False)
@@ -154,21 +153,15 @@ class SimpleModel(object):
 
             last_rel_pos, last_out, cur_kwargs = scan_rout.send(None)
 
-            # last_absolute_chosen = theano.printing.Print("last_absolute_chosen")(last_absolute_chosen)
-            # last_rel_pos = theano.printing.Print("last_rel_pos")(last_rel_pos)
             new_pos = self.encoding.get_new_relative_position(last_absolute_chosen, last_rel_pos, last_out, constants.LOW_BOUND, constants.HIGH_BOUND, **cur_kwargs)
-            # new_pos = theano.printing.Print("new_pos")(new_pos)
             addtl_kwargs = {
                 "last_output": last_out
             }
 
             out_activations = scan_rout.send((new_pos, addtl_kwargs))
             out_probs = self.encoding.decode_to_probs(out_activations,new_pos,constants.LOW_BOUND, constants.HIGH_BOUND)
-            # out_probs = theano.printing.Print("out_probs")(out_probs)
             sampled_note = Encoding.sample_absolute_probs(self.srng, out_probs)
-            # sampled_note = theano.printing.Print("sampled_note")(sampled_note)
             encoded_output = self.encoding.note_to_encoding(sampled_note, new_pos, constants.LOW_BOUND, constants.HIGH_BOUND)
-            # encoded_output = theano.printing.Print("encoded_output")(encoded_output)
             scan_outputs = scan_rout.send(encoded_output)
             scan_rout.close()
 

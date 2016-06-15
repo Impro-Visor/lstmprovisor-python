@@ -106,8 +106,6 @@ class RelativeShiftLSTMStack( object ):
                     return T.roll(c_mem, -c_shift, axis=0)
 
 
-            # separated_mem = theano.printing.Print("separated_mem",['shape'])(separated_mem)
-            # shifts = theano.printing.Print("shifts",['shape'])(shifts)
             shifted_mem, _ = theano.map(_shift_step, [separated_mem, shifts])
 
             new_per_note_mem = shifted_mem.reshape((n_batch, self.window_size * per_note))
@@ -149,7 +147,6 @@ class RelativeShiftLSTMStack( object ):
         full_input = T.concatenate([ part.generate(**squashed_kwargs) for part in self.input_parts ], 1)
         adjusted_input = full_input.reshape([n_batch, n_time, self.input_size]).dimshuffle((1,0,2))
 
-        # adjusted_input = theano.printing.Print("adjusted_input")(adjusted_input)
 
         if "relative_position" in kwargs:
             relative_position = kwargs["relative_position"]
@@ -275,8 +272,6 @@ class RelativeShiftLSTMStack( object ):
             masks = [None] + other[split:]
 
         cur_pos, addtl_kwargs = yield(last_pos, last_out, cur_kwargs)
-        # cur_pos = theano.printing.Print("cur_pos",['shape','__str__'])(cur_pos)
-        # last_pos = theano.printing.Print("last_pos",['shape','__str__'])(last_pos)
         shift = cur_pos - last_pos
 
         all_kwargs = {
@@ -285,14 +280,7 @@ class RelativeShiftLSTMStack( object ):
         all_kwargs.update(cur_kwargs)
         all_kwargs.update(addtl_kwargs)
 
-        # all_kwargs = {
-            # k: theano.printing.Print("all_kwargs["+k+"]",['shape'])(v) for k,v in all_kwargs.items()
-        # }
-
         full_input = T.concatenate([ part.generate(**all_kwargs) for part in self.input_parts ], 1)
-        # full_input = theano.printing.Print("full_input",['shape'])(full_input)
-        # shift = theano.printing.Print("shift",['shape','__str__'])(shift)
-        # hiddens = [theano.printing.Print("hiddens[{}]".format(i),['shape'])(hiddens[i]) for i in range(len(hiddens))]
 
         step_stuff = self.perform_step(full_input, shift, hiddens, dropout_masks=masks)
         new_hiddens = step_stuff[:-1]

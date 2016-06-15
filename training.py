@@ -11,7 +11,6 @@ import pickle as pickle
 import traceback
 
 BATCH_SIZE = 10
-BATCH_SIZE = 2
 SEGMENT_STEP = constants.WHOLE//constants.RESOLUTION_SCALAR
 SEGMENT_LEN = 4*SEGMENT_STEP
 

@@ -185,11 +185,8 @@ class ProductOfExpertsModel(object):
             for scan_rout, encoding in zip(scan_routs, self.encodings):
                 last_rel_pos, last_out, cur_kwargs = scan_rout.send(None)
 
-                # last_absolute_chosen = theano.printing.Print("last_absolute_chosen")(last_absolute_chosen)
-                # last_rel_pos = theano.printing.Print("last_rel_pos")(last_rel_pos)
                 new_pos = encoding.get_new_relative_position(last_absolute_chosen, last_rel_pos, last_out, constants.LOW_BOUND, constants.HIGH_BOUND, **cur_kwargs)
                 new_posns.append(new_pos)
-                # new_pos = theano.printing.Print("new_pos")(new_pos)
                 addtl_kwargs = {
                     "last_output": last_out
                 }
@@ -201,14 +198,11 @@ class ProductOfExpertsModel(object):
             reduced_out_probs = T.prod(T.stack(all_out_probs),0)
             norm_out_probs = reduced_out_probs/T.sum(reduced_out_probs, 1, keepdims=True)
 
-            # out_probs = theano.printing.Print("out_probs")(out_probs)
             sampled_note = Encoding.sample_absolute_probs(self.srng, norm_out_probs)
-            # sampled_note = theano.printing.Print("sampled_note")(sampled_note)
 
             outputs = []
             for scan_rout, encoding, new_pos in zip(scan_routs, self.encodings, new_posns):
                 encoded_output = encoding.note_to_encoding(sampled_note, new_pos, constants.LOW_BOUND, constants.HIGH_BOUND)
-                # encoded_output = theano.printing.Print("encoded_output")(encoded_output)
                 scan_outputs = scan_rout.send(encoded_output)
                 scan_rout.close()
                 outputs.extend(scan_outputs)
