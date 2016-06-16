@@ -90,6 +90,7 @@ class ProductOfExpertsModel(object):
                 all_out_probs.append(out_probs)
             reduced_out_probs = T.prod(T.stack(all_out_probs),0)
             normsum = T.sum(reduced_out_probs, 2, keepdims=True)
+            normsum = T.maximum(normsum, constants.EPSILON)
             norm_out_probs = reduced_out_probs/normsum
             return Encoding.compute_loss(norm_out_probs, correct_notes, True)
 

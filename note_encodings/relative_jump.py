@@ -120,6 +120,7 @@ class RelativeJumpEncoding( Encoding ):
 
             cropped = rel_probs[startidx:endidx]
             normalize_sum = T.sum(cropped) + T.sum(abs_probs)
+            normalize_sum = T.maximum(normalize_sum, constants.EPSILON)
             padded = T.concatenate([abs_probs/normalize_sum, T.zeros((startpadding,)), cropped/normalize_sum, T.zeros((endpadding,))], 0)
             # padded = theano.printing.Print("padded",['shape'])(padded)
             return padded
