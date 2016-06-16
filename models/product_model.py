@@ -12,8 +12,10 @@ from adam import Adam
 from note_encodings import Encoding
 
 import itertools
+import functools
 
 from theano.compile.nanguardmode import NanGuardMode
+
 
 class ProductOfExpertsModel(object):
     def __init__(self, encodings, all_layer_sizes, shift_modes=None, dropout=0, setup=False, nanguard=False):
@@ -92,7 +94,7 @@ class ProductOfExpertsModel(object):
 
                 out_probs = encoding.decode_to_probs(activations, relative_pos, constants.LOW_BOUND, constants.HIGH_BOUND)
                 all_out_probs.append(out_probs)
-            reduced_out_probs = T.prod(T.stack(all_out_probs),0)
+            reduced_out_probs = functools.reduce((lambda x,y: x*y), all_out_probs)
             normsum = T.sum(reduced_out_probs, 2, keepdims=True)
             normsum = T.maximum(normsum, constants.EPSILON)
             norm_out_probs = reduced_out_probs/normsum
