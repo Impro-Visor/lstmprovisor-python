@@ -92,7 +92,7 @@ class ProductOfExpertsModel(object):
 
                 out_probs = encoding.decode_to_probs(activations, relative_pos, constants.LOW_BOUND, constants.HIGH_BOUND)
                 all_out_probs.append(out_probs)
-            # stacked = T.stack(all_out_probs)
+            #stacked = T.stack(all_out_probs)
             # reduced_out_probs = T.prod(stacked,0)
             import functools
             reduced_out_probs = functools.reduce((lambda x,y: x*y), all_out_probs)
@@ -100,20 +100,20 @@ class ProductOfExpertsModel(object):
             normsum = T.maximum(normsum, constants.EPSILON)
             norm_out_probs = reduced_out_probs/normsum
             from theano.compile.ops import as_op
-            types = [stacked.type, reduced_out_probs.type, normsum.type, norm_out_probs.type]
-            class MySaveOp(theano.Op):
-                __props__ = ()
-                itypes=types
-                otypes=types
-                def perform(self,node,inputs_storage,output_storage):
-                    a,b,c,d = inputs_storage
-                    np.savez_compressed("debug_stuff",a,b,c,d)
-                    ao,bo,co,do = output_storage
-                    ao[0],bo[0],co[0],do[0] = a,b,c,d
-                def infer_shape(self,node,shapes):
-                    return shapes
-                def grad(self,ipts,opt_gradients):
-                    return opt_gradients
+            # types = [stacked.type, reduced_out_probs.type, normsum.type, norm_out_probs.type]
+            # class MySaveOp(theano.Op):
+            #     __props__ = ()
+            #     itypes=types
+            #     otypes=types
+            #     def perform(self,node,inputs_storage,output_storage):
+            #         a,b,c,d = inputs_storage
+            #         np.savez_compressed("debug_stuff",a,b,c,d)
+            #         ao,bo,co,do = output_storage
+            #         ao[0],bo[0],co[0],do[0] = a,b,c,d
+            #     def infer_shape(self,node,shapes):
+            #         return shapes
+            #     def grad(self,ipts,opt_gradients):
+            #         return opt_gradients
 
             # stacked, reduced_out_probs, normsum, norm_out_probs = MySaveOp()(stacked, reduced_out_probs, normsum, norm_out_probs)
             return Encoding.compute_loss(norm_out_probs, correct_notes, True)
