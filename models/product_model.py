@@ -99,11 +99,21 @@ class ProductOfExpertsModel(object):
             norm_out_probs = reduced_out_probs/normsum
             from theano.compile.ops import as_op
             types = [stacked.type, reduced_out_probs.type, normsum.type, norm_out_probs.type]
-            @as_op(itypes=types,otypes=types,infer_shape=(lambda node, shapes: shapes))
-            def _save_fn(a,b,c,d):
-                np.savez_compressed("debug_stuff",a,b,c,d)
-                return a,b,c,d
-            stacked, reduced_out_probs, normsum, norm_out_probs = _save_fn(stacked, reduced_out_probs, normsum, norm_out_probs)
+            class MySaveOp(theano.Op):
+                __props__ = ()
+                itypes=types
+                otypes=types
+                def perform(self,node,inputs_storage,output_storage):
+                    a,b,c,d = inputs_storage
+                    np.savez_compressed("debug_stuff",a,b,c,d)
+                    ao,bo,co,do = output_storage
+                    ao[0],bo[0],co[0],do[0] = a,b,c,d
+                def infer_shape(self,node,shapes):
+                    return shapes
+                def grad(self,ipts,opt_gradients):
+                    return opt_gradients
+
+            stacked, reduced_out_probs, normsum, norm_out_probs = MySaveOp()(stacked, reduced_out_probs, normsum, norm_out_probs)
             return Encoding.compute_loss(norm_out_probs, correct_notes, True)
 
         train_loss, train_info = _build(False)
