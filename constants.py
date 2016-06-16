@@ -171,7 +171,7 @@ MIDDLE_C_MIDI = 60
 OCTAVE = 12
 
 
-EPSILON = np.finfo(np.float32).tiny
+EPSILON = np.finfo(np.float32).eps #np.finfo(np.float32).tiny
 
 LOW_BOUND = 48
 HIGH_BOUND = 84+1

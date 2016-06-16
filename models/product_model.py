@@ -93,14 +93,16 @@ class ProductOfExpertsModel(object):
                 out_probs = encoding.decode_to_probs(activations, relative_pos, constants.LOW_BOUND, constants.HIGH_BOUND)
                 all_out_probs.append(out_probs)
             stacked = T.stack(all_out_probs)
-            stacked = theano.printing.Print("stacked",['tolist'])(stacked)
             reduced_out_probs = T.prod(stacked,0)
-            reduced_out_probs = theano.printing.Print("reduced_out_probs",['tolist'])(reduced_out_probs)
             normsum = T.sum(reduced_out_probs, 2, keepdims=True)
             normsum = T.maximum(normsum, constants.EPSILON)
-            normsum = theano.printing.Print("normsum",['tolist'])(normsum)
             norm_out_probs = reduced_out_probs/normsum
-            norm_out_probs = theano.printing.Print("norm_out_probs",['tolist'])(norm_out_probs)
+            from theano.compile.ops import as_op
+            @as_op(itypes=[T.ftensor4, T.ftensor3, T.ftensor3, T.ftensor3],otypes=[T.ftensor4, T.ftensor3, T.ftensor3, T.ftensor3])
+            def _save_fn(a,b,c,d):
+                np.savez_compressed("debug_stuff",a,b,c,d)
+                return a,b,c,d
+            stacked, reduced_out_probs, normsum, norm_out_probs = _save_fn(stacked, reduced_out_probs, normsum, norm_out_probs)
             return Encoding.compute_loss(norm_out_probs, correct_notes, True)
 
         train_loss, train_info = _build(False)
