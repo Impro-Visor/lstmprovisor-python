@@ -92,8 +92,10 @@ class ProductOfExpertsModel(object):
 
                 out_probs = encoding.decode_to_probs(activations, relative_pos, constants.LOW_BOUND, constants.HIGH_BOUND)
                 all_out_probs.append(out_probs)
-            stacked = T.stack(all_out_probs)
-            reduced_out_probs = T.prod(stacked,0)
+            # stacked = T.stack(all_out_probs)
+            # reduced_out_probs = T.prod(stacked,0)
+            import functools
+            reduced_out_probs = functools.reduce((lambda x,y: x*y), all_out_probs)
             normsum = T.sum(reduced_out_probs, 2, keepdims=True)
             normsum = T.maximum(normsum, constants.EPSILON)
             norm_out_probs = reduced_out_probs/normsum
@@ -113,7 +115,7 @@ class ProductOfExpertsModel(object):
                 def grad(self,ipts,opt_gradients):
                     return opt_gradients
 
-            stacked, reduced_out_probs, normsum, norm_out_probs = MySaveOp()(stacked, reduced_out_probs, normsum, norm_out_probs)
+            # stacked, reduced_out_probs, normsum, norm_out_probs = MySaveOp()(stacked, reduced_out_probs, normsum, norm_out_probs)
             return Encoding.compute_loss(norm_out_probs, correct_notes, True)
 
         train_loss, train_info = _build(False)
