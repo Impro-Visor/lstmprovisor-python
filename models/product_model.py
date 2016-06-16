@@ -89,7 +89,8 @@ class ProductOfExpertsModel(object):
                 out_probs = encoding.decode_to_probs(activations, relative_pos, constants.LOW_BOUND, constants.HIGH_BOUND)
                 all_out_probs.append(out_probs)
             reduced_out_probs = T.prod(T.stack(all_out_probs),0)
-            norm_out_probs = reduced_out_probs/T.sum(reduced_out_probs, 1, keepdims=True)
+            normsum = T.sum(reduced_out_probs, 2, keepdims=True)
+            norm_out_probs = reduced_out_probs/normsum
             return Encoding.compute_loss(norm_out_probs, correct_notes, True)
 
         train_loss, train_info = _build(False)

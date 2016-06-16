@@ -24,7 +24,6 @@ def main(dataset="dataset", outputdir="output"):
     pickle.dump( m.params, open( os.path.join(outputdir, "final_params.p"), "wb" ) )
 
 if __name__ == '__main__':
-    np.set_printoptions(edgeitems=20)
     if len(sys.argv) == 1:
         main()
     else:
