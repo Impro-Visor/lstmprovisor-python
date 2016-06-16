@@ -99,7 +99,7 @@ class ProductOfExpertsModel(object):
             norm_out_probs = reduced_out_probs/normsum
             from theano.compile.ops import as_op
             types = [stacked.type, reduced_out_probs.type, normsum.type, norm_out_probs.type]
-            @as_op(itypes=types,otypes=types)
+            @as_op(itypes=types,otypes=types,infer_shape=(lambda node, shapes: shapes))
             def _save_fn(a,b,c,d):
                 np.savez_compressed("debug_stuff",a,b,c,d)
                 return a,b,c,d
