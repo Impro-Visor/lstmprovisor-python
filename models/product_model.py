@@ -13,8 +13,10 @@ from note_encodings import Encoding
 
 import itertools
 
+from theano.compile.nanguardmode import NanGuardMode
+
 class ProductOfExpertsModel(object):
-    def __init__(self, encodings, all_layer_sizes, shift_modes=None, dropout=0, setup=False):
+    def __init__(self, encodings, all_layer_sizes, shift_modes=None, dropout=0, setup=False, nanguard=False):
         self.encodings = encodings
         if shift_modes is None:
             shift_modes = ["drop"]*len(encodings)
@@ -36,6 +38,8 @@ class ProductOfExpertsModel(object):
         self.update_fun = None
         self.eval_fun = None
         self.gen_fun = None
+
+        self.nanguard = nanguard
 
         if setup:
             print("Setting up train")
@@ -105,12 +109,14 @@ class ProductOfExpertsModel(object):
             inputs=[chord_types, chord_roots, correct_notes] + relative_posns + encoded_melodies,
             outputs=[train_loss]+list(train_info.values()),
             updates=updates,
-            allow_input_downcast=True)
+            allow_input_downcast=True,
+            mode=(NanGuardMode(nan_is_error=True, inf_is_error=True, big_is_error=True) if self.nanguard else None))
 
         self.eval_fun = theano.function(
             inputs=[chord_types, chord_roots, correct_notes] + relative_posns + encoded_melodies,
             outputs=[eval_loss]+list(eval_info.values()),
-            allow_input_downcast=True)
+            allow_input_downcast=True,
+            mode=(NanGuardMode(nan_is_error=True, inf_is_error=True, big_is_error=True) if self.nanguard else None))
 
     def _assemble_batch(self, melody, chords):
         encoded_melodies = [[] for _ in self.encodings]
@@ -228,13 +234,15 @@ class ProductOfExpertsModel(object):
             inputs=[chord_roots, chord_types],
             updates=updates,
             outputs=all_chosen,
-            allow_input_downcast=True)
+            allow_input_downcast=True,
+            mode=(NanGuardMode(nan_is_error=True, inf_is_error=True, big_is_error=True) if self.nanguard else None))
 
         self.generate_visualize_fun = theano.function(
             inputs=[chord_roots, chord_types],
             updates=updates,
             outputs=[all_chosen, all_probs] + indiv_probs,
-            allow_input_downcast=True)
+            allow_input_downcast=True,
+            mode=(NanGuardMode(nan_is_error=True, inf_is_error=True, big_is_error=True) if self.nanguard else None))
 
     def generate(self, chords):
         assert self.generate_fun is not None, "Need to call setup_generate before generate"
