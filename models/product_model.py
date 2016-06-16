@@ -98,7 +98,8 @@ class ProductOfExpertsModel(object):
             normsum = T.maximum(normsum, constants.EPSILON)
             norm_out_probs = reduced_out_probs/normsum
             from theano.compile.ops import as_op
-            @as_op(itypes=[T.ftensor4, T.ftensor3, T.ftensor3, T.ftensor3],otypes=[T.ftensor4, T.ftensor3, T.ftensor3, T.ftensor3])
+            types = [stacked.type, reduced_out_probs.type, normsum.type, norm_out_probs.type]
+            @as_op(itypes=types,otypes=types)
             def _save_fn(a,b,c,d):
                 np.savez_compressed("debug_stuff",a,b,c,d)
                 return a,b,c,d
