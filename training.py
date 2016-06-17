@@ -36,6 +36,19 @@ def get_batch(leadsheets):
 
     return list(zip(*sliced))
 
+def generate(model, leadsheets, filename, with_vis=False):
+    chords = get_batch(leadsheets)[0]
+    if with_vis:
+        generated_out, chosen, vis_probs, vis_info = model.generate_visualize(chords)
+        np.save('{}_chosen.npy'.format(filename), chosen)
+        np.save('{}_probs.npy'.format(filename), vis_probs)
+        for i,v in enumerate(vis_info):
+            np.save('{}_info_{}.npy'.format(filename,i), v)
+    else:
+        generated_out = model.generate(chords)
+    for samplenum, (melody, chords) in enumerate(zip(generated_out, chords)):
+        leadsheet.write_leadsheet(chords, melody, '{}_{}.ls'.format(filename, samplenum))
+
 def train(model,leadsheets,num_updates,outputdir,start=0):
     stopflag = [False]
     def signal_handler(signame, sf):
@@ -54,10 +67,7 @@ def train(model,leadsheets,num_updates,outputdir,start=0):
         if i % 10 == 0:
             print("update {}: {}, info {}".format(i,loss,infos))
         if i % 500 == 0 or (i % 100 == 0 and i < 1000) or i==1:
-            chords = get_batch(leadsheets)[0]
-            generated_out = model.generate(chords)
-            for samplenum, (melody, chords) in enumerate(zip(generated_out, chords)):
-                leadsheet.write_leadsheet(chords, melody, os.path.join(outputdir, 'sample{}_{}.ls'.format(i, samplenum)))
+            generate(model, leadsheets, os.path.join(outputdir,'sample{}'.format(i)))
             pickle.dump(model.params,open(os.path.join(outputdir, 'params{}.p'.format(i)), 'wb'))
     if not stopflag[0]:
         signal.signal(signal.SIGINT, old_handler)

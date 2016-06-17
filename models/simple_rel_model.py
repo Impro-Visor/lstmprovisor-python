@@ -198,9 +198,14 @@ class SimpleModel(object):
 
     def generate_visualize(self, chords):
         assert self.generate_fun is not None, "Need to call setup_generate before generate"
-        chord_roots, chord_types = zip(*chords)
+        chord_roots = []
+        chord_types = []
+        for c in chords:
+            c_roots, c_types = zip(*c)
+            chord_roots.append(c_roots)
+            chord_types.append(c_types)
         chosen, all_probs = self.generate_visualize_fun(chord_roots, chord_types)
 
-        melody = [Encoding.decode_absolute_melody(c) for c in chosen]
-        return melody, all_probs
+        melody = [Encoding.decode_absolute_melody(c, constants.LOW_BOUND, constants.HIGH_BOUND) for c in chosen]
+        return melody, chosen, all_probs
 

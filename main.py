@@ -1,6 +1,6 @@
 import argparse
 
-def main(dataset="dataset", outputdir="output", resume=None, check_nan=False):
+def main(dataset="dataset", outputdir="output", resume=None, check_nan=False, generate=None, layersizes=None):
     from models import SimpleModel, ProductOfExpertsModel
     from note_encodings import RelativeJumpEncoding, ChordRelativeEncoding
     import leadsheet
@@ -13,9 +13,12 @@ def main(dataset="dataset", outputdir="output", resume=None, check_nan=False):
     import numpy as np
     import relative_data
 
-    # (100,10),(100,10)
-    # (300,20),(300,20)
-    m = ProductOfExpertsModel([RelativeJumpEncoding(), ChordRelativeEncoding()], [[(200,10),(200,10)], [(200,10),(200,10)]], ["drop","roll"], dropout=0.5, setup=True, nanguard=check_nan)
+    if layersizes is not None:
+        lsizes = eval(layersizes,{},{})
+    else:
+        lsizes = [[(200,10),(200,10)], [(200,10),(200,10)]]
+
+    m = ProductOfExpertsModel([RelativeJumpEncoding(), ChordRelativeEncoding()], lsizes, ["drop","roll"], dropout=0.5, setup=(generate is None), nanguard=check_nan)
 
     leadsheets = training.find_leadsheets(dataset)
 
@@ -26,15 +29,20 @@ def main(dataset="dataset", outputdir="output", resume=None, check_nan=False):
     else:
         start_idx = 0
 
-    training.train(m, leadsheets, 50000, outputdir, start_idx)
-
-    pickle.dump( m.params, open( os.path.join(outputdir, "final_params.p"), "wb" ) )
+    if generate is not None:
+        m.setup_generate()
+        training.generate(m, leadsheets, generate, with_vis=True)
+    else:
+        training.train(m, leadsheets, 50000, outputdir, start_idx)
+        pickle.dump( m.params, open( os.path.join(outputdir, "final_params.p"), "wb" ) )
 
 parser = argparse.ArgumentParser(description='Train a neural network model.')
-parser.add_argument('--dataset', default='dataset', help='path to dataset folder (with .ls files)')
-parser.add_argument('--outputdir', default='output', help='path to output folder')
-parser.add_argument('--check_nan', action='store_true', help='check for nans during execution')
-parser.add_argument('--resume', nargs=2, metavar=('TIMESTEP', 'PARAMFILE'), default=None, help='timestep to restore from, and file to load')
+parser.add_argument('--dataset', default='dataset', help='Path to dataset folder (with .ls files)')
+parser.add_argument('--outputdir', default='output', help='Path to output folder')
+parser.add_argument('--layersizes', help='Model layer sizes')
+parser.add_argument('--check_nan', action='store_true', help='Check for nans during execution')
+parser.add_argument('--generate', default=None, metavar='SAMPLEPATH', help="Don't train, just generate. Should be used with restore.")
+parser.add_argument('--resume', nargs=2, metavar=('TIMESTEP', 'PARAMFILE'), default=None, help='Where to restore from: timestep, and file to load')
 
 if __name__ == '__main__':
     args = parser.parse_args()
