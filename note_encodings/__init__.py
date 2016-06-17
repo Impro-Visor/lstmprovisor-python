@@ -1,3 +1,4 @@
 from .base_encoding import Encoding
 from .relative_jump import RelativeJumpEncoding
 from .chord_relative import ChordRelativeEncoding
+from .abs_seq_encoding import AbsoluteSequentialEncoding
