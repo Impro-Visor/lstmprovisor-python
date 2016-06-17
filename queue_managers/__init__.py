@@ -1,1 +1,3 @@
-from queue_base import QueueManager
+from .queue_base import QueueManager
+from .standard_manager import StandardQueueManager
+from .variational_manager import VariationalQueueManager

@@ -1,24 +1,25 @@
-from .queue_base import QueueManager, fragmented_queue_process
+from .queue_base import QueueManager
 import theano
 import theano.tensor as T
+from theano.sandbox.rng_mrg import MRG_RandomStreams
+import numpy as np
 
 class VariationalQueueManager( QueueManager ):
     """
     A variational-autoencoder-based queue manager, using a configurable loss
     """
 
-    def __init__(self, feature_size, srng, loss_fun=(lambda x:x)):
+    def __init__(self, feature_size, loss_fun=(lambda x:x)):
         """
         Initialize the manager.
 
         Parameters:
             feature_size: The width of a feature
-            srng: A theano random streams object
             loss_fun: A function which computes the loss for each timestep. Should be an elementwise
                 operation.
         """
         self._feature_size = feature_size
-        self._srng = srng
+        self._srng = MRG_RandomStreams(np.random.randint(0, 1024))
         self._vector_activation_fun = vector_activation_fun
         self._loss_fun = loss_fun
 
@@ -32,7 +33,7 @@ class VariationalQueueManager( QueueManager ):
 
     def helper_sample(self, input_activations):
         pre_strengths = input_activations[:,:,0]
-        strengths = T.sigmoid(pre_strengths)
+        strengths = T.nnet.sigmoid(pre_strengths)
 
         means = input_activations[:,:,1:1+self.feature_size]
         stdevs = input_activations[:,:,1+self.feature_size:]
@@ -46,10 +47,9 @@ class VariationalQueueManager( QueueManager ):
         strengths, vects, means, stdevs = self.helper_sample(input_activations)
         return strengths, vects
 
-    def process(self, input_activations):
+    def process(self, input_activations, extra_info=False):
 
         strengths, vects, means, stdevs = self.helper_sample(input_activations)
-        transformed_output = fragmented_queue_process(strengths, vects)
 
         sparsity_losses = self._loss_fun(strengths)
         full_sparsity_loss = T.sum(losses)
@@ -60,4 +60,7 @@ class VariationalQueueManager( QueueManager ):
 
         full_loss = full_sparsity_loss + variational_loss
         
-        return transformed_output, full_loss
+        if extra_info:
+            return full_loss, strengths, vects, {"sparsity_loss": full_sparsity_loss, "variational_loss":variational_loss}
+        else:
+            return full_loss, strengths, vects

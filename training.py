@@ -10,6 +10,8 @@ import pickle as pickle
 
 import traceback
 
+from pprint import pformat
+
 BATCH_SIZE = 10
 SEGMENT_STEP = constants.WHOLE//constants.RESOLUTION_SCALAR
 SEGMENT_LEN = 4*SEGMENT_STEP
@@ -37,15 +39,13 @@ def get_batch(leadsheets):
     return list(zip(*sliced))
 
 def generate(model, leadsheets, filename, with_vis=False):
-    chords = get_batch(leadsheets)[0]
+    chords, melody = get_batch(leadsheets)
+    generated_out, chosen, vis_probs, vis_info = model.produce(chords, melody)
     if with_vis:
-        generated_out, chosen, vis_probs, vis_info = model.generate_visualize(chords)
         np.save('{}_chosen.npy'.format(filename), chosen)
         np.save('{}_probs.npy'.format(filename), vis_probs)
         for i,v in enumerate(vis_info):
             np.save('{}_info_{}.npy'.format(filename,i), v)
-    else:
-        generated_out = model.generate(chords)
     for samplenum, (melody, chords) in enumerate(zip(generated_out, chords)):
         leadsheet.write_leadsheet(chords, melody, '{}_{}.ls'.format(filename, samplenum))
 
@@ -65,7 +65,7 @@ def train(model,leadsheets,num_updates,outputdir,start=0):
                 f.write("iter, loss, ".format(i,loss) + ", ".join(k for k,v in sorted(infos.items())) + "\n")
             f.write("{}, {}, ".format(i,loss) + ", ".join(str(v) for k,v in sorted(infos.items())) + "\n")
         if i % 10 == 0:
-            print("update {}: {}, info {}".format(i,loss,infos))
+            print("update {}: {}, info {}".format(i,loss,pformat(infos)))
         if i % 500 == 0 or (i % 100 == 0 and i < 1000) or i==1:
             generate(model, leadsheets, os.path.join(outputdir,'sample{}'.format(i)))
             pickle.dump(model.params,open(os.path.join(outputdir, 'params{}.p'.format(i)), 'wb'))

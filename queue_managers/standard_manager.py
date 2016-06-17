@@ -7,7 +7,7 @@ class StandardQueueManager( QueueManager ):
     A standard queue manager, using a configurable set of functions
     """
 
-    def __init__(self, feature_size, vector_activation_fun=T.sigmoid, loss_fun=(lambda x:x)):
+    def __init__(self, feature_size, vector_activation_fun=T.nnet.sigmoid, loss_fun=(lambda x:x)):
         """
         Initialize the manager.
 
@@ -35,7 +35,7 @@ class StandardQueueManager( QueueManager ):
         pre_strengths = input_activations[:,:,0]
         pre_vects = input_activations[:,:,1:]
 
-        strengths = T.sigmoid(pre_strengths)
+        strengths = T.nnet.sigmoid(pre_strengths)
 
         flat_pre_vects = T.reshape(pre_vects,(-1,self.feature_size))
         flat_vects = self._vector_activation_fun( flat_pre_vects )
@@ -43,7 +43,10 @@ class StandardQueueManager( QueueManager ):
 
         return strengths, vects
 
-    def get_loss(self, raw_feature_strengths, raw_feature_vects):
+    def get_loss(self, raw_feature_strengths, raw_feature_vects, extra_info=False):
         losses = self._loss_fun(raw_feature_strengths)
         full_loss = T.sum(losses)
-        return full_loss
+        if extra_info:
+            return full_loss, {}
+        else:
+            return full_loss

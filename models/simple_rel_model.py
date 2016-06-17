@@ -12,7 +12,7 @@ from adam import Adam
 from note_encodings import Encoding
 
 class SimpleModel(object):
-    def __init__(self, encoding, layer_sizes, shift_mode="drop", dropout=0, setup=False):
+    def __init__(self, encoding, layer_sizes, shift_mode="drop", dropout=0, setup=False, nanguard=False):
 
         self.encoding = encoding
 
@@ -29,6 +29,8 @@ class SimpleModel(object):
         self.update_fun = None
         self.eval_fun = None
         self.gen_fun = None
+
+        self.nanguard = nanguard
 
         if setup:
             print("Setting up train")
@@ -87,12 +89,14 @@ class SimpleModel(object):
             inputs=[chord_types, chord_roots, relative_pos, encoded_melody, correct_notes],
             outputs=[train_loss]+list(train_info.values()),
             updates=updates,
-            allow_input_downcast=True)
+            allow_input_downcast=True,
+            mode=(NanGuardMode(nan_is_error=True, inf_is_error=True, big_is_error=True) if self.nanguard else None))
 
         self.eval_fun = theano.function(
             inputs=[chord_types, chord_roots, relative_pos, encoded_melody, correct_notes],
             outputs=[eval_loss]+list(eval_info.values()),
-            allow_input_downcast=True)
+            allow_input_downcast=True,
+            mode=(NanGuardMode(nan_is_error=True, inf_is_error=True, big_is_error=True) if self.nanguard else None))
 
     def _assemble_batch(self, melody, chords):
         encoded_melody = []
@@ -176,13 +180,15 @@ class SimpleModel(object):
             inputs=[chord_roots, chord_types],
             updates=updates,
             outputs=all_chosen,
-            allow_input_downcast=True)
+            allow_input_downcast=True,
+            mode=(NanGuardMode(nan_is_error=True, inf_is_error=True, big_is_error=True) if self.nanguard else None))
 
         self.generate_visualize_fun = theano.function(
             inputs=[chord_roots, chord_types],
             updates=updates,
             outputs=[all_chosen, all_probs],
-            allow_input_downcast=True)
+            allow_input_downcast=True,
+            mode=(NanGuardMode(nan_is_error=True, inf_is_error=True, big_is_error=True) if self.nanguard else None))
 
     def generate(self, chords):
         assert self.generate_fun is not None, "Need to call setup_generate before generate"
@@ -209,3 +215,5 @@ class SimpleModel(object):
         melody = [Encoding.decode_absolute_melody(c, constants.LOW_BOUND, constants.HIGH_BOUND) for c in chosen]
         return melody, chosen, all_probs
 
+    def produce(self, chords, melody):
+        return self.generate_visualize(chords)

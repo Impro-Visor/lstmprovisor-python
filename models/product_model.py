@@ -173,64 +173,7 @@ class ProductOfExpertsModel(object):
                                                     deterministic_dropout=True )
                     for lstmstack, encoding in zip(self.lstmstacks, self.encodings)]
 
-        def _scan_fn(*inputs):
-            # inputs is [ spec_sequences..., last_absolute_position, spec_taps..., spec_non_sequences... ]
-            inputs = list(inputs)
-
-            partitioned_inputs = [[] for _ in specs]
-            for cur_part, spec in zip(partitioned_inputs, specs):
-                cur_part.extend(inputs[:len(spec.sequences)])
-                del inputs[:len(spec.sequences)]
-            last_absolute_chosen = inputs.pop(0)
-            for cur_part, spec in zip(partitioned_inputs, specs):
-                cur_part.extend(inputs[:spec.num_taps])
-                del inputs[:spec.num_taps]
-            for cur_part, spec in zip(partitioned_inputs, specs):
-                cur_part.extend(inputs[:len(spec.non_sequences)])
-                del inputs[:len(spec.non_sequences)]
-
-            scan_routs = [ lstmstack.sample_scan_routine(spec, *p_input) for lstmstack,spec,p_input in zip(self.lstmstacks, specs, partitioned_inputs) ]
-            new_posns = []
-            all_out_probs = []
-            for scan_rout, encoding in zip(scan_routs, self.encodings):
-                last_rel_pos, last_out, cur_kwargs = scan_rout.send(None)
-
-                new_pos = encoding.get_new_relative_position(last_absolute_chosen, last_rel_pos, last_out, constants.LOW_BOUND, constants.HIGH_BOUND, **cur_kwargs)
-                new_posns.append(new_pos)
-                addtl_kwargs = {
-                    "last_output": last_out
-                }
-
-                out_activations = scan_rout.send((new_pos, addtl_kwargs))
-                out_probs = encoding.decode_to_probs(out_activations,new_pos,constants.LOW_BOUND, constants.HIGH_BOUND)
-                all_out_probs.append(out_probs)
-
-            reduced_out_probs = T.prod(T.stack(all_out_probs),0)
-            norm_out_probs = reduced_out_probs/T.sum(reduced_out_probs, 1, keepdims=True)
-
-            sampled_note = Encoding.sample_absolute_probs(self.srng, norm_out_probs)
-
-            outputs = []
-            for scan_rout, encoding, new_pos in zip(scan_routs, self.encodings, new_posns):
-                encoded_output = encoding.note_to_encoding(sampled_note, new_pos, constants.LOW_BOUND, constants.HIGH_BOUND)
-                scan_outputs = scan_rout.send(encoded_output)
-                scan_rout.close()
-                outputs.extend(scan_outputs)
-
-            return [sampled_note, norm_out_probs] + all_out_probs + outputs
-
-        sequences = []
-        non_sequences = []
-        outputs_info = [{"initial":T.zeros((n_batch,),'int32'), "taps":[-1]}, None] + [None]*len(specs)
-        for spec in specs:
-            sequences.extend(spec.sequences)
-            non_sequences.extend(spec.non_sequences)
-            outputs_info.extend(spec.outputs_info)
-        
-        result, updates = theano.scan(fn=_scan_fn, sequences=sequences, non_sequences=non_sequences, outputs_info=outputs_info)
-        all_chosen = result[0].dimshuffle((1,0))
-        all_probs = result[1].dimshuffle((1,0,2))
-        indiv_probs = [r.dimshuffle((1,0,2)) for r in result[2:2+len(specs)]]
+        updates, all_chosen, all_probs, indiv_probs = helper_generate_from_spec(specs, self.lstmstacks, self.encodings, self.srng, n_batch, n_time)
 
         self.generate_fun = theano.function(
             inputs=[chord_roots, chord_types],
@@ -272,3 +215,68 @@ class ProductOfExpertsModel(object):
         melody = [Encoding.decode_absolute_melody(c, constants.LOW_BOUND, constants.HIGH_BOUND) for c in chosen]
         return melody, chosen, all_probs, stuff[2:]
 
+    def produce(self, chords, melody):
+        return self.generate_visualize(chords)
+
+def helper_generate_from_spec(specs, lstmstacks, encodings, srng, n_batch, n_time):
+    """Helper function to generate through a product LSTM model"""
+    def _scan_fn(*inputs):
+        # inputs is [ spec_sequences..., last_absolute_position, spec_taps..., spec_non_sequences... ]
+        inputs = list(inputs)
+
+        partitioned_inputs = [[] for _ in specs]
+        for cur_part, spec in zip(partitioned_inputs, specs):
+            cur_part.extend(inputs[:len(spec.sequences)])
+            del inputs[:len(spec.sequences)]
+        last_absolute_chosen = inputs.pop(0)
+        for cur_part, spec in zip(partitioned_inputs, specs):
+            cur_part.extend(inputs[:spec.num_taps])
+            del inputs[:spec.num_taps]
+        for cur_part, spec in zip(partitioned_inputs, specs):
+            cur_part.extend(inputs[:len(spec.non_sequences)])
+            del inputs[:len(spec.non_sequences)]
+
+        scan_routs = [ lstmstack.sample_scan_routine(spec, *p_input) for lstmstack,spec,p_input in zip(lstmstacks, specs, partitioned_inputs) ]
+        new_posns = []
+        all_out_probs = []
+        for scan_rout, encoding in zip(scan_routs, encodings):
+            last_rel_pos, last_out, cur_kwargs = scan_rout.send(None)
+
+            new_pos = encoding.get_new_relative_position(last_absolute_chosen, last_rel_pos, last_out, constants.LOW_BOUND, constants.HIGH_BOUND, **cur_kwargs)
+            new_posns.append(new_pos)
+            addtl_kwargs = {
+                "last_output": last_out
+            }
+
+            out_activations = scan_rout.send((new_pos, addtl_kwargs))
+            out_probs = encoding.decode_to_probs(out_activations,new_pos,constants.LOW_BOUND, constants.HIGH_BOUND)
+            all_out_probs.append(out_probs)
+
+        reduced_out_probs = T.prod(T.stack(all_out_probs),0)
+        norm_out_probs = reduced_out_probs/T.sum(reduced_out_probs, 1, keepdims=True)
+
+        sampled_note = Encoding.sample_absolute_probs(srng, norm_out_probs)
+
+        outputs = []
+        for scan_rout, encoding, new_pos in zip(scan_routs, encodings, new_posns):
+            encoded_output = encoding.note_to_encoding(sampled_note, new_pos, constants.LOW_BOUND, constants.HIGH_BOUND)
+            scan_outputs = scan_rout.send(encoded_output)
+            scan_rout.close()
+            outputs.extend(scan_outputs)
+
+        return [sampled_note, norm_out_probs] + all_out_probs + outputs
+
+    sequences = []
+    non_sequences = []
+    outputs_info = [{"initial":T.zeros((n_batch,),'int32'), "taps":[-1]}, None] + [None]*len(specs)
+    for spec in specs:
+        sequences.extend(spec.sequences)
+        non_sequences.extend(spec.non_sequences)
+        outputs_info.extend(spec.outputs_info)
+    
+    result, updates = theano.scan(fn=_scan_fn, sequences=sequences, non_sequences=non_sequences, outputs_info=outputs_info)
+    all_chosen = result[0].dimshuffle((1,0))
+    all_probs = result[1].dimshuffle((1,0,2))
+    indiv_probs = [r.dimshuffle((1,0,2)) for r in result[2:2+len(specs)]]
+
+    return updates, all_chosen, all_probs, indiv_probs
