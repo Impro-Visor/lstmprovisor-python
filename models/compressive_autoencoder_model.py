@@ -132,6 +132,8 @@ class CompressiveAutoencoderModel( object ):
             full_loss = queue_loss + reconstruction_loss
             full_info = queue_info.copy()
             full_info.update(reconstruction_info)
+            full_info["queue_loss"] = queue_loss
+            full_info["reconstruction_loss"] = reconstruction_loss
             return full_loss, full_info
 
         train_loss, train_info = _build(False)
