@@ -55,7 +55,7 @@ class VariationalQueueManager( QueueManager ):
 
         means_sq = means**2
         variance = stdevs**2
-        variational_loss = 0.5 * T.sum(1 + T.log(variance) - means_sq - variance)
+        variational_loss = -0.5 * T.sum(1 + T.log(variance) - means_sq - variance)
 
         full_loss = full_sparsity_loss + variational_loss
         
