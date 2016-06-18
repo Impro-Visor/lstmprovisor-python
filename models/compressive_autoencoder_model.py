@@ -19,7 +19,7 @@ from theano.compile.nanguardmode import NanGuardMode
 
 
 class CompressiveAutoencoderModel( object ):
-    def __init__(self, queue_manager, encodings, enc_layer_sizes, dec_layer_sizes, shift_modes=None, dropout=0, setup=False, nanguard=False):
+    def __init__(self, queue_manager, encodings, enc_layer_sizes, dec_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False):
         
         self.qman = queue_manager
 
@@ -27,24 +27,24 @@ class CompressiveAutoencoderModel( object ):
         if shift_modes is None:
             shift_modes = ["drop"]*len(encodings)
 
+        if inputs is None:
+            inputs = [[
+                input_parts.BeatInputPart(),
+                input_parts.PositionInputPart(constants.LOW_BOUND, constants.HIGH_BOUND, 2),
+                input_parts.ChordShiftInputPart()]]*len(self.encodings)
+
         self.enc_layer_sizes = enc_layer_sizes
         self.dec_layer_sizes = dec_layer_sizes
         self.enc_lstmstacks = []
         self.dec_lstmstacks = []
-        for enc_layer_sizes, dec_layer_sizes, encoding, shift_mode in zip(enc_layer_sizes,dec_layer_sizes,encodings,shift_modes):
-            enc_parts = [
-                input_parts.BeatInputPart(),
-                input_parts.PositionInputPart(constants.LOW_BOUND, constants.HIGH_BOUND, 2),
-                input_parts.ChordShiftInputPart(),
+        for enc_layer_sizes, dec_layer_sizes, encoding, shift_mode, ipt in zip(enc_layer_sizes,dec_layer_sizes,encodings,shift_modes,inputs):
+            enc_parts = ipt + [
                 input_parts.PassthroughInputPart("cur_input", encoding.ENCODING_WIDTH)
             ]
             enc_lstmstack = RelativeShiftLSTMStack(enc_parts, enc_layer_sizes, self.qman.activation_width, encoding.WINDOW_SIZE, dropout, mode=shift_mode)
             self.enc_lstmstacks.append(enc_lstmstack)
 
-            dec_parts = [
-                input_parts.BeatInputPart(),
-                input_parts.PositionInputPart(constants.LOW_BOUND, constants.HIGH_BOUND, 2),
-                input_parts.ChordShiftInputPart(),
+            dec_parts = ipt + [
                 input_parts.PassthroughInputPart("cur_feature", self.qman.feature_size),
                 input_parts.PassthroughInputPart("last_output", encoding.ENCODING_WIDTH)
             ]

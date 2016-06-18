@@ -23,7 +23,7 @@ GEN_SEGMENT_LEN = SEGMENT_LEN
 def find_leadsheets(dirpath):
     return [os.path.join(dirpath, fname) for fname in os.listdir(dirpath) if fname[-3:] == '.ls']
 
-def get_batch(leadsheets):
+def get_batch(leadsheets, with_sample=False):
     """
     Get a batch
 
@@ -36,12 +36,20 @@ def get_batch(leadsheets):
     starts = [(0 if l==SEGMENT_LEN else random.randrange(0,l-SEGMENT_LEN,SEGMENT_STEP)) for l in sample_lengths]
     sliced = [leadsheet.slice_leadsheet(c,m,s,s+SEGMENT_LEN) for (c,m),s in zip(loaded_samples, starts)]
 
-    return list(zip(*sliced))
+    res = list(zip(*sliced))
+
+    if with_sample:
+        return res, sample_fns
+    else:
+        return res
 
 def generate(model, leadsheets, filename, with_vis=False):
-    chords, melody = get_batch(leadsheets)
+    (chords, melody), sample_fns = get_batch(leadsheets, True)
     generated_out, chosen, vis_probs, vis_info = model.produce(chords, melody)
+
     if with_vis:
+        with open("{}_sources.txt", "w") as f:
+            f.write('\n'.join(sample_fns))
         np.save('{}_chosen.npy'.format(filename), chosen)
         np.save('{}_probs.npy'.format(filename), vis_probs)
         for i,v in enumerate(vis_info):

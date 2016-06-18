@@ -4,6 +4,7 @@ def main(modeltype, dataset="dataset", outputdir="output", resume=None, check_na
     from models import SimpleModel, ProductOfExpertsModel, CompressiveAutoencoderModel
     from note_encodings import AbsoluteSequentialEncoding, RelativeJumpEncoding, ChordRelativeEncoding
     from queue_managers import StandardQueueManager, VariationalQueueManager
+    import input_parts
     import leadsheet
     import training
     import pickle
@@ -52,7 +53,9 @@ def main(modeltype, dataset="dataset", outputdir="output", resume=None, check_na
                 [AbsoluteSequentialEncoding(constants.LOW_BOUND, constants.HIGH_BOUND)],
                 [[(300,0),(300,0)]],
                 [[(300,0),(300,0)]],
-                ["drop"],
+                inputs=[[input_parts.BeatInputPart(),
+                  input_parts.ChordShiftInputPart()]],
+                shift_modes=["drop"],
                 dropout=0.5, setup=should_setup, nanguard=check_nan)),
         "compae_std_rel": (lambda:
             CompressiveAutoencoderModel(
@@ -60,7 +63,7 @@ def main(modeltype, dataset="dataset", outputdir="output", resume=None, check_na
                 [RelativeJumpEncoding()],
                 [[(200,10),(200,10)]],
                 [[(200,10),(200,10)]],
-                ["drop"],
+                shift_modes=["drop"],
                 dropout=0.5, setup=should_setup, nanguard=check_nan)),
         "compae_std_poex": (lambda:
             CompressiveAutoencoderModel(
@@ -68,7 +71,7 @@ def main(modeltype, dataset="dataset", outputdir="output", resume=None, check_na
                 [RelativeJumpEncoding(), ChordRelativeEncoding()],
                 [[(200,10),(200,10)], [(200,10),(200,10)]],
                 [[(200,10),(200,10)], [(200,10),(200,10)]],
-                ["drop","roll"],
+                shift_modes=["drop","roll"],
                 dropout=0.5, setup=should_setup, nanguard=check_nan)),
         "compae_var_abs": (lambda:
             CompressiveAutoencoderModel(
@@ -76,7 +79,9 @@ def main(modeltype, dataset="dataset", outputdir="output", resume=None, check_na
                 [AbsoluteSequentialEncoding(constants.LOW_BOUND, constants.HIGH_BOUND)],
                 [[(300,0),(300,0)]],
                 [[(300,0),(300,0)]],
-                ["drop"],
+                inputs=[[input_parts.BeatInputPart(),
+                  input_parts.ChordShiftInputPart()]],
+                shift_modes=["drop"],
                 dropout=0.5, setup=should_setup, nanguard=check_nan)),
         "compae_var_rel": (lambda:
             CompressiveAutoencoderModel(
@@ -84,7 +89,7 @@ def main(modeltype, dataset="dataset", outputdir="output", resume=None, check_na
                 [RelativeJumpEncoding()],
                 [[(200,10),(200,10)]],
                 [[(200,10),(200,10)]],
-                ["drop"],
+                shift_modes=["drop"],
                 dropout=0.5, setup=should_setup, nanguard=check_nan)),
         "compae_var_poex": (lambda:
             CompressiveAutoencoderModel(
@@ -92,7 +97,7 @@ def main(modeltype, dataset="dataset", outputdir="output", resume=None, check_na
                 [RelativeJumpEncoding(), ChordRelativeEncoding()],
                 [[(200,10),(200,10)], [(200,10),(200,10)]],
                 [[(200,10),(200,10)], [(200,10),(200,10)]],
-                ["drop","roll"],
+                shift_modes=["drop","roll"],
                 dropout=0.5, setup=should_setup, nanguard=check_nan)),
     }
     assert modeltype in model_builders, "{} is not a valid model. Try one of {}".format(modeltype, list(model_builders.keys()))

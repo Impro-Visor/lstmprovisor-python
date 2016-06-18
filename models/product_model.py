@@ -18,18 +18,21 @@ from theano.compile.nanguardmode import NanGuardMode
 
 
 class ProductOfExpertsModel(object):
-    def __init__(self, encodings, all_layer_sizes, shift_modes=None, dropout=0, setup=False, nanguard=False):
+    def __init__(self, encodings, all_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False):
         self.encodings = encodings
         if shift_modes is None:
             shift_modes = ["drop"]*len(encodings)
 
-        self.all_layer_sizes = all_layer_sizes
-        self.lstmstacks = []
-        for layer_sizes, encoding, shift_mode in zip(all_layer_sizes,encodings,shift_modes):
-            parts = [
+        if inputs is None:
+            inputs = [[
                 input_parts.BeatInputPart(),
                 input_parts.PositionInputPart(constants.LOW_BOUND, constants.HIGH_BOUND, 2),
-                input_parts.ChordShiftInputPart(),
+                input_parts.ChordShiftInputPart()]]*len(self.encodings)
+
+        self.all_layer_sizes = all_layer_sizes
+        self.lstmstacks = []
+        for layer_sizes, encoding, shift_mode, ipt in zip(all_layer_sizes,encodings,shift_modes, inputs):
+            parts = ipt + [
                 input_parts.PassthroughInputPart("last_output", encoding.ENCODING_WIDTH)
             ]
             lstmstack = RelativeShiftLSTMStack(parts, layer_sizes, encoding.RAW_ENCODING_WIDTH, encoding.WINDOW_SIZE, dropout, mode=shift_mode)

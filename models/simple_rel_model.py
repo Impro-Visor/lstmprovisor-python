@@ -12,14 +12,17 @@ from adam import Adam
 from note_encodings import Encoding
 
 class SimpleModel(object):
-    def __init__(self, encoding, layer_sizes, shift_mode="drop", dropout=0, setup=False, nanguard=False):
+    def __init__(self, encoding, layer_sizes, inputs=None, shift_mode="drop", dropout=0, setup=False, nanguard=False):
 
         self.encoding = encoding
 
-        parts = [
-            input_parts.BeatInputPart(),
-            input_parts.PositionInputPart(constants.LOW_BOUND, constants.HIGH_BOUND, 2),
-            input_parts.ChordShiftInputPart(),
+        if inputs is None:
+            inputs = [
+                input_parts.BeatInputPart(),
+                input_parts.PositionInputPart(constants.LOW_BOUND, constants.HIGH_BOUND, 2),
+                input_parts.ChordShiftInputPart()]
+
+        parts = inputs + [
             input_parts.PassthroughInputPart("last_output", encoding.ENCODING_WIDTH)
         ]
         self.lstmstack = RelativeShiftLSTMStack(parts, layer_sizes, encoding.RAW_ENCODING_WIDTH, encoding.WINDOW_SIZE, dropout, mode=shift_mode)

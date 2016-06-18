@@ -20,7 +20,6 @@ class VariationalQueueManager( QueueManager ):
         """
         self._feature_size = feature_size
         self._srng = MRG_RandomStreams(np.random.randint(0, 1024))
-        self._vector_activation_fun = vector_activation_fun
         self._loss_fun = loss_fun
 
     @property
@@ -52,7 +51,7 @@ class VariationalQueueManager( QueueManager ):
         strengths, vects, means, stdevs = self.helper_sample(input_activations)
 
         sparsity_losses = self._loss_fun(strengths)
-        full_sparsity_loss = T.sum(losses)
+        full_sparsity_loss = T.sum(sparsity_losses)
 
         means_sq = means**2
         variance = stdevs**2
