@@ -20,3 +20,4 @@ def plot_generated(mat):
         plt.axvline(x-0.5, color='k')
     for x in range(0,4*(constants.WHOLE//constants.RESOLUTION_SCALAR),(constants.WHOLE//constants.RESOLUTION_SCALAR)):
         plt.axvline(x-0.5, color='c')
+    plt.show()
