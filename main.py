@@ -39,13 +39,13 @@ def main(modeltype, dataset="dataset", outputdir="output", resume=None, check_na
             ProductOfExpertsModel(
                 [RelativeJumpEncoding(), ChordRelativeEncoding()],
                 [[(200,10),(200,10)], [(200,10),(200,10)]],
-                ["drop","roll"],
+                shift_modes=["drop","roll"],
                 dropout=0.5, setup=should_setup, nanguard=check_nan)),
         "poex_npn": (lambda:
             ProductOfExpertsModel(
                 [RelativeJumpEncoding(), ChordRelativeEncoding()],
                 [[(300,0),(300,0)], [(300,0),(300,0)]],
-                ["drop","roll"],
+                shift_modes=["drop","roll"],
                 dropout=0.5, setup=should_setup, nanguard=check_nan)),
         "compae_std_abs": (lambda:
             CompressiveAutoencoderModel(
