@@ -51,7 +51,7 @@ class CompressiveAutoencoderModel( object ):
             dec_lstmstack = RelativeShiftLSTMStack(dec_parts, dec_layer_sizes, encoding.RAW_ENCODING_WIDTH, encoding.WINDOW_SIZE, dropout, mode=shift_mode, unroll_batch_num=unroll_batch_num)
             self.dec_lstmstacks.append(dec_lstmstack)
 
-        self.srng = MRG_RandomStreams(np.random.randint(0, 1024))
+        self.srng = MRG_RandomStreams(np.random.randint(1, 1024))
 
         self.update_fun = None
         self.eval_fun = None
