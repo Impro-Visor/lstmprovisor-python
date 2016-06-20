@@ -1,5 +1,6 @@
 import theano
 import theano.tensor as T
+from theano.ifelse import ifelse
 import numpy as np
 import constants
 
@@ -175,14 +176,14 @@ class Encoding( object ):
 
         sampler = T.shape_padright(srng.uniform((n_batch,)))
 
-        indicator = T.switch(cum_probs > sampler, cum_probs, 2)
+        cutoff = cum_probs > sampler
+        indicator = T.switch(cutoff, cum_probs, 2)
         argmin = T.cast(T.argmin(indicator, 1), 'int32')
-        # Note: As long as the probabilities add up to 1, this works perfectly.
-        # Due to numerical precision, it is possible that the cumulative sum is slightly <1
-        # If this is the case, and sampler is too high, all values will become 2 in the
-        # indicator and it should pick index [0], which is rest.
 
-        return argmin
+        # Control for case where probabilities are too small
+        result = ifelse(T.any(cutoff), argmin, 0)
+
+        return result
 
     @staticmethod
     def compute_loss(probs, absolute_melody, extra_info=False):
