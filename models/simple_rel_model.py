@@ -218,5 +218,8 @@ class SimpleModel(object):
         melody = [Encoding.decode_absolute_melody(c, constants.LOW_BOUND, constants.HIGH_BOUND) for c in chosen]
         return melody, chosen, all_probs
 
+    def setup_produce(self):
+        self.setup_generate()
+        
     def produce(self, chords, melody):
         return self.generate_visualize(chords)

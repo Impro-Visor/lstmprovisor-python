@@ -293,6 +293,10 @@ class CompressiveAutoencoderModel( object ):
         melody = [Encoding.decode_absolute_melody(c, constants.LOW_BOUND, constants.HIGH_BOUND) for c in chosen]
         return melody, chosen, all_probs, stuff[2:]
 
+    def setup_produce(self):
+        self.setup_encode()
+        self.setup_decode()
+
     def produce(self, chords, melody):
         strengths, vects = self.encode(chords, melody)
         melody, chosen, all_probs, all_info = self.decode_visualize(chords, strengths, vects)

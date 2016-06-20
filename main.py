@@ -118,7 +118,7 @@ def main(modeltype, dataset="dataset", outputdir="output", resume=None, check_na
         os.makedirs(outputdir)
 
     if generate:
-        m.setup_generate()
+        m.setup_produce()
         if generate_over is not None:
             source, divwidth = generate_over
             if divwidth == 'full':
