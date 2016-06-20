@@ -29,7 +29,7 @@ def get_batch(leadsheets, with_sample=False):
 
     returns: chords, melodies
     """
-    sample_fns = [random.choice(leadsheets) for _ in xrange(BATCH_SIZE)]
+    sample_fns = [random.choice(leadsheets) for _ in range(BATCH_SIZE)]
     loaded_samples = [leadsheet.parse_leadsheet(lsfn) for lsfn in sample_fns]
     sample_lengths = [leadsheet.get_leadsheet_length(c,m) for c,m in loaded_samples]
 
