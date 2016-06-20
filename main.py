@@ -51,7 +51,7 @@ def main(modeltype, dataset="dataset", outputdir="output", resume=None, check_na
                 dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
         "compae_std_abs": (lambda:
             CompressiveAutoencoderModel(
-                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+x))),
+                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
                 [AbsoluteSequentialEncoding(constants.LOW_BOUND, constants.HIGH_BOUND)],
                 [[(300,0),(300,0)]],
                 [[(300,0),(300,0)]],
@@ -61,7 +61,7 @@ def main(modeltype, dataset="dataset", outputdir="output", resume=None, check_na
                 dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
         "compae_std_rel": (lambda:
             CompressiveAutoencoderModel(
-                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+x))),
+                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
                 [RelativeJumpEncoding()],
                 [[(200,10),(200,10)]],
                 [[(200,10),(200,10)]],
@@ -69,7 +69,7 @@ def main(modeltype, dataset="dataset", outputdir="output", resume=None, check_na
                 dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
         "compae_std_poex": (lambda:
             CompressiveAutoencoderModel(
-                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+x))),
+                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
                 [RelativeJumpEncoding(), ChordRelativeEncoding()],
                 [[(200,10),(200,10)], [(200,10),(200,10)]],
                 [[(200,10),(200,10)], [(200,10),(200,10)]],
@@ -77,7 +77,7 @@ def main(modeltype, dataset="dataset", outputdir="output", resume=None, check_na
                 dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
         "compae_var_abs": (lambda:
             CompressiveAutoencoderModel(
-                VariationalQueueManager(100, loss_fun=(lambda x: T.log(1+x))),
+                VariationalQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
                 [AbsoluteSequentialEncoding(constants.LOW_BOUND, constants.HIGH_BOUND)],
                 [[(300,0),(300,0)]],
                 [[(300,0),(300,0)]],
@@ -87,7 +87,7 @@ def main(modeltype, dataset="dataset", outputdir="output", resume=None, check_na
                 dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
         "compae_var_rel": (lambda:
             CompressiveAutoencoderModel(
-                VariationalQueueManager(100, loss_fun=(lambda x: T.log(1+x))),
+                VariationalQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
                 [RelativeJumpEncoding()],
                 [[(200,10),(200,10)]],
                 [[(200,10),(200,10)]],
@@ -95,7 +95,7 @@ def main(modeltype, dataset="dataset", outputdir="output", resume=None, check_na
                 dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
         "compae_var_poex": (lambda:
             CompressiveAutoencoderModel(
-                VariationalQueueManager(100, loss_fun=(lambda x: T.log(1+x))),
+                VariationalQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
                 [RelativeJumpEncoding(), ChordRelativeEncoding()],
                 [[(200,10),(200,10)], [(200,10),(200,10)]],
                 [[(200,10),(200,10)], [(200,10),(200,10)]],
