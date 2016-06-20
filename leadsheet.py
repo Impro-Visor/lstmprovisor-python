@@ -122,9 +122,24 @@ def parse_leadsheet(fn,verbose=False):
     with open(fn,'r') as f:
         contents = "\n".join(f.readlines())
     parsed = sexpdata.loads("({})".format(contents))
-    no_meta = [x.value() for x in parsed if not isinstance(x,list)]
 
-    chords_raw = [x for x in no_meta if x[0].isupper() or x in ("|", "/")]
+    parts = [('default','',[])]
+    for p in parsed:
+        if not isinstance(p, list):
+            parts[-1][2].append(p.value())
+        elif not isinstance(p[0], list) and p[0].value() == 'part':
+            def strval(x):
+                return x.value() if isinstance(x,sexpdata.Symbol) else str(x)
+            part_type = next((' '.join(strval(x) for x in l[1:]) for l in p if isinstance(l,list) and l[0].value() == "type"), None)
+            title = next((' '.join(strval(x) for x in l[1:]) for l in p if isinstance(l,list) and l[0].value() == "title"), '')
+            parts.append((part_type, title, []))
+
+    chord_parts = [x for x in parts if x[0]=='chords']
+    if len(chord_parts) == 0:
+        chord_parts = [x for x in parts if x[0]=='default']
+    assert len(chord_parts) == 1, 'Wrong number of chord parts!'
+
+    chords_raw = [x for x in chord_parts[0][2] if x[0].isupper() or x in ("|", "/")]
     chords = []
     partial_measure = []
     last_chord = None
@@ -140,8 +155,15 @@ def parse_leadsheet(fn,verbose=False):
                 last_chord = parse_chord(c,verbose)
             partial_measure.append(last_chord)
 
-    melody_raw = [x for x in no_meta if x[0].islower()]
-    melody = [parse_note(x) for x in melody_raw]
+    melody = []
+    for part_type, title, part_data in parts:
+        if part_type == 'melody':
+            melody_raw = [x for x in part_data if x[0].islower()]
+            melody_proc = [parse_note(x) for x in melody_raw]
+            mlen = sum(dur for n,dur in melody_proc)
+            if mlen < len(chords):
+                melody_proc.append((None, len(chords)-mlen))
+            melody.extend(melody_proc)
 
     # print "Raw Chords: " + " ".join(chords_raw)
     # print "Raw Melody: " + " ".join(melody_raw)
@@ -154,7 +176,7 @@ def parse_leadsheet(fn,verbose=False):
     clen = len(chords)
     mlen = sum(dur for n,dur in melody)
     # Might have multiple melodies over the same chords
-    # assert mlen % clen == 0, "Notes and chords don't match: {}, {}".format(clen,mlen)
+    assert mlen % clen == 0, "Notes and chords don't match: {}, {}".format(clen,mlen)
 
     return chords, melody
 
@@ -186,7 +208,7 @@ def slice_leadsheet(chords, melody, start, end):
 
     clen = len(sliced_chords)
     mlen = sum(dur for n,dur in sliced_melody_full)
-    assert clen == mlen
+    assert clen == mlen, "clen {} and mlen {} do not match".format(clen,mlen)
 
     return sliced_chords, sliced_melody_full
 
@@ -306,8 +328,9 @@ def write_leadsheet(chords, melody, filename=None):
     full_leadsheet = """
 (section (style swing))
 
+(part (type chords))
 {}
-
+(part (type melody))
 {}
 """.format(write_chords(chords), write_melody(melody))
 
