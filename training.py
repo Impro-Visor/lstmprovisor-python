@@ -43,8 +43,10 @@ def get_batch(leadsheets, with_sample=False):
     else:
         return res
 
-def generate(model, leadsheets, filename, with_vis=False):
-    (chords, melody), sample_fns = get_batch(leadsheets, True)
+def generate(model, leadsheets, filename, with_vis=False, batch=None):
+    if batch is None:
+        batch = get_batch(leadsheets, True)
+    (chords, melody), sample_fns = batch
     generated_out, chosen, vis_probs, vis_info = model.produce(chords, melody)
 
     if with_vis:
