@@ -19,7 +19,7 @@ from theano.compile.nanguardmode import NanGuardMode
 
 
 class CompressiveAutoencoderModel( object ):
-    def __init__(self, queue_manager, encodings, enc_layer_sizes, dec_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False):
+    def __init__(self, queue_manager, encodings, enc_layer_sizes, dec_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False, unroll_batch_num=None):
         
         self.qman = queue_manager
 
@@ -41,14 +41,14 @@ class CompressiveAutoencoderModel( object ):
             enc_parts = ipt + [
                 input_parts.PassthroughInputPart("cur_input", encoding.ENCODING_WIDTH)
             ]
-            enc_lstmstack = RelativeShiftLSTMStack(enc_parts, enc_layer_sizes, self.qman.activation_width, encoding.WINDOW_SIZE, dropout, mode=shift_mode)
+            enc_lstmstack = RelativeShiftLSTMStack(enc_parts, enc_layer_sizes, self.qman.activation_width, encoding.WINDOW_SIZE, dropout, mode=shift_mode, unroll_batch_num=unroll_batch_num)
             self.enc_lstmstacks.append(enc_lstmstack)
 
             dec_parts = ipt + [
                 input_parts.PassthroughInputPart("cur_feature", self.qman.feature_size),
                 input_parts.PassthroughInputPart("last_output", encoding.ENCODING_WIDTH)
             ]
-            dec_lstmstack = RelativeShiftLSTMStack(dec_parts, dec_layer_sizes, encoding.RAW_ENCODING_WIDTH, encoding.WINDOW_SIZE, dropout, mode=shift_mode)
+            dec_lstmstack = RelativeShiftLSTMStack(dec_parts, dec_layer_sizes, encoding.RAW_ENCODING_WIDTH, encoding.WINDOW_SIZE, dropout, mode=shift_mode, unroll_batch_num=unroll_batch_num)
             self.dec_lstmstacks.append(dec_lstmstack)
 
         self.srng = MRG_RandomStreams(np.random.randint(0, 1024))

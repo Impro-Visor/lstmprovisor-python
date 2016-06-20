@@ -15,7 +15,7 @@ class RelativeShiftLSTMStack( object ):
     Manages a stack of LSTM cells with potentially a relative shift applied
     """
 
-    def __init__(self, input_parts, layer_sizes, output_size, window_size=0, dropout=0, mode="drop"):
+    def __init__(self, input_parts, layer_sizes, output_size, window_size=0, dropout=0, mode="drop", unroll_batch_num=None):
         """
         Parameters:
             input_parts: A list of InputParts
@@ -46,6 +46,8 @@ class RelativeShiftLSTMStack( object ):
 
         assert mode in ("drop", "roll"), "Must specify either drop or roll mode"
         self.mode = mode
+
+        self.unroll_batch_num = unroll_batch_num
 
     @property
     def params(self):
@@ -105,8 +107,13 @@ class RelativeShiftLSTMStack( object ):
                 elif self.mode=="roll":
                     return T.roll(c_mem, -c_shift, axis=0)
 
-
-            shifted_mem, _ = theano.map(_shift_step, [separated_mem, shifts])
+            if self.unroll_batch_num is None:
+                shifted_mem, _ = theano.map(_shift_step, [separated_mem, shifts])
+            else:
+                shifted_mem_parts = []
+                for i in range(self.unroll_batch_num):
+                    shifted_mem_parts.append(_shift_step(separated_mem[i], shifts[i]))
+                shifted_mem = T.stack(shifted_mem_parts)
 
             new_per_note_mem = shifted_mem.reshape((n_batch, self.window_size * per_note))
             new_layer_hiddens = T.concatenate([indep_mem, new_per_note_mem, remaining_values], 1)

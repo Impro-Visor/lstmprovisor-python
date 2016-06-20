@@ -12,7 +12,7 @@ from adam import Adam
 from note_encodings import Encoding
 
 class SimpleModel(object):
-    def __init__(self, encoding, layer_sizes, inputs=None, shift_mode="drop", dropout=0, setup=False, nanguard=False):
+    def __init__(self, encoding, layer_sizes, inputs=None, shift_mode="drop", dropout=0, setup=False, nanguard=False, unroll_batch_num=None):
 
         self.encoding = encoding
 
@@ -25,7 +25,7 @@ class SimpleModel(object):
         parts = inputs + [
             input_parts.PassthroughInputPart("last_output", encoding.ENCODING_WIDTH)
         ]
-        self.lstmstack = RelativeShiftLSTMStack(parts, layer_sizes, encoding.RAW_ENCODING_WIDTH, encoding.WINDOW_SIZE, dropout, mode=shift_mode)
+        self.lstmstack = RelativeShiftLSTMStack(parts, layer_sizes, encoding.RAW_ENCODING_WIDTH, encoding.WINDOW_SIZE, dropout, mode=shift_mode, unroll_batch_num=unroll_batch_num)
 
         self.srng = MRG_RandomStreams(np.random.randint(0, 1024))
 

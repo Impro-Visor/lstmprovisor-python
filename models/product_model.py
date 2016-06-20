@@ -18,7 +18,7 @@ from theano.compile.nanguardmode import NanGuardMode
 
 
 class ProductOfExpertsModel(object):
-    def __init__(self, encodings, all_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False):
+    def __init__(self, encodings, all_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False, unroll_batch_num=None):
         self.encodings = encodings
         if shift_modes is None:
             shift_modes = ["drop"]*len(encodings)
@@ -35,7 +35,7 @@ class ProductOfExpertsModel(object):
             parts = ipt + [
                 input_parts.PassthroughInputPart("last_output", encoding.ENCODING_WIDTH)
             ]
-            lstmstack = RelativeShiftLSTMStack(parts, layer_sizes, encoding.RAW_ENCODING_WIDTH, encoding.WINDOW_SIZE, dropout, mode=shift_mode)
+            lstmstack = RelativeShiftLSTMStack(parts, layer_sizes, encoding.RAW_ENCODING_WIDTH, encoding.WINDOW_SIZE, dropout, mode=shift_mode, unroll_batch_num=unroll_batch_num)
             self.lstmstacks.append(lstmstack)
 
         self.srng = MRG_RandomStreams(np.random.randint(0, 1024))
