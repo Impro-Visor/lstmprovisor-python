@@ -50,7 +50,7 @@ def generate(model, leadsheets, filename, with_vis=False, batch=None):
     generated_out, chosen, vis_probs, vis_info = model.produce(chords, melody)
 
     if with_vis:
-        with open("{}_sources.txt", "w") as f:
+        with open("{}_sources.txt".format(filename), "w") as f:
             f.write('\n'.join(sample_fns))
         np.save('{}_chosen.npy'.format(filename), chosen)
         np.save('{}_probs.npy'.format(filename), vis_probs)
