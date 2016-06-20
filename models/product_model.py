@@ -258,8 +258,10 @@ def helper_generate_from_spec(specs, lstmstacks, encodings, srng, n_batch, n_tim
             out_probs = encoding.decode_to_probs(out_activations,new_pos,constants.LOW_BOUND, constants.HIGH_BOUND)
             all_out_probs.append(out_probs)
 
-        reduced_out_probs = T.prod(T.stack(all_out_probs),0)
-        norm_out_probs = reduced_out_probs/T.sum(reduced_out_probs, 1, keepdims=True)
+        reduced_out_probs = functools.reduce((lambda x,y: x*y), all_out_probs)
+        normsum = T.sum(reduced_out_probs, 2, keepdims=True)
+        normsum = T.maximum(normsum, constants.EPSILON)
+        norm_out_probs = reduced_out_probs/normsum
 
         sampled_note = Encoding.sample_absolute_probs(srng, norm_out_probs)
 

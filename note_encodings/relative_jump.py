@@ -147,6 +147,7 @@ class RelativeJumpEncoding( Encoding ):
                 encode_melody
         """
         new_idx = T.switch(chosen_note<2, chosen_note, chosen_note+low_bound-relative_position+self.WINDOW_RADIUS)
+        new_idx = T.opt.Assert("new_idx should be less than {}".format(self.ENCODING_WIDTH))(new_idx, T.all(new_idx < self.ENCODING_WIDTH))
         sampled_output = T.extra_ops.to_one_hot(new_idx, self.ENCODING_WIDTH)
         return sampled_output
 
