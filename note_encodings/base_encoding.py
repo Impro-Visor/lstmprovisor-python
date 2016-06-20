@@ -168,22 +168,14 @@ class Encoding( object ):
 
         Returns:
             Sampled output, an index in [0,sample_from) of shape (n_batch)
+            One-hot encoding of that output of shape (n_batch, sample_from)
         """
         n_batch,sample_from = probs.shape
 
-        cum_probs = T.extra_ops.cumsum(probs, 1)
-        # cum_probs = theano.printing.Print("Cumulative probs")(cum_probs)
+        sample = srng.multinomial(n=1,pvals=probs)
+        idx = T.cast(T.argmax(sample,axis=1),'int32')
 
-        sampler = T.shape_padright(srng.uniform((n_batch,)))
-
-        cutoff = cum_probs > sampler
-        indicator = T.switch(cutoff, cum_probs, 2)
-        argmin = T.cast(T.argmin(indicator, 1), 'int32')
-
-        # Control for case where probabilities are too small
-        result = ifelse(T.any(cutoff), argmin, 0)
-
-        return result
+        return idx
 
     @staticmethod
     def compute_loss(probs, absolute_melody, extra_info=False):

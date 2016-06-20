@@ -220,7 +220,7 @@ class ProductOfExpertsModel(object):
 
     def setup_produce(self):
         self.setup_generate()
-        
+
     def produce(self, chords, melody):
         return self.generate_visualize(chords)
 
@@ -259,7 +259,7 @@ def helper_generate_from_spec(specs, lstmstacks, encodings, srng, n_batch, n_tim
             all_out_probs.append(out_probs)
 
         reduced_out_probs = functools.reduce((lambda x,y: x*y), all_out_probs)
-        normsum = T.sum(reduced_out_probs, 2, keepdims=True)
+        normsum = T.sum(reduced_out_probs, 1, keepdims=True)
         normsum = T.maximum(normsum, constants.EPSILON)
         norm_out_probs = reduced_out_probs/normsum
 
