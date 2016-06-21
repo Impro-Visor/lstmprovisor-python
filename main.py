@@ -2,7 +2,7 @@ import argparse
 
 def main(modeltype, dataset="dataset", outputdir="output", validation=None, resume=None, check_nan=False, generate=False, generate_over=None):
     from models import SimpleModel, ProductOfExpertsModel, CompressiveAutoencoderModel
-    from note_encodings import AbsoluteSequentialEncoding, RelativeJumpEncoding, ChordRelativeEncoding
+    from note_encodings import AbsoluteSequentialEncoding, RelativeJumpEncoding, ChordRelativeEncoding, CircleOfThirdsEncoding
     from queue_managers import StandardQueueManager, VariationalQueueManager
     import input_parts
     import leadsheet
@@ -24,7 +24,7 @@ def main(modeltype, dataset="dataset", outputdir="output", validation=None, resu
     model_builders = {
         "simple_abs": (lambda:
             SimpleModel(
-                AbsoluteSequentialEncoding(constants.LOW_BOUND, constants.HIGH_BOUND),
+                AbsoluteSequentialEncoding(constants.BOUNDS.lowbound, constants.BOUNDS.highbound),
                 [(300,0),(300,0)],
                 dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
         "simple_rel": (lambda:
@@ -36,6 +36,12 @@ def main(modeltype, dataset="dataset", outputdir="output", validation=None, resu
             SimpleModel(
                 RelativeJumpEncoding(),
                 [(300,0),(300,0)],
+                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
+        "simple_cot": (lambda:
+            SimpleModel(
+                CircleOfThirdsEncoding(constants.BOUNDS.lowbound, (constants.BOUNDS.highbound-constants.BOUNDS.lowbound)//12),
+                [(300,0),(300,0)],
+                bounds=constants.NoteBounds(48, 84),
                 dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
         "poex": (lambda:
             ProductOfExpertsModel(
@@ -52,7 +58,7 @@ def main(modeltype, dataset="dataset", outputdir="output", validation=None, resu
         "compae_std_abs": (lambda:
             CompressiveAutoencoderModel(
                 StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
-                [AbsoluteSequentialEncoding(constants.LOW_BOUND, constants.HIGH_BOUND)],
+                [AbsoluteSequentialEncoding(constants.BOUNDS.lowbound, constants.BOUNDS.highbound)],
                 [[(300,0),(300,0)]],
                 [[(300,0),(300,0)]],
                 inputs=[[input_parts.BeatInputPart(),
@@ -78,7 +84,7 @@ def main(modeltype, dataset="dataset", outputdir="output", validation=None, resu
         "compae_var_abs": (lambda:
             CompressiveAutoencoderModel(
                 VariationalQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
-                [AbsoluteSequentialEncoding(constants.LOW_BOUND, constants.HIGH_BOUND)],
+                [AbsoluteSequentialEncoding(constants.BOUNDS.lowbound, constants.BOUNDS.highbound)],
                 [[(300,0),(300,0)]],
                 [[(300,0),(300,0)]],
                 inputs=[[input_parts.BeatInputPart(),

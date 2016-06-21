@@ -10,6 +10,7 @@ import input_parts
 from relshift_lstm import RelativeShiftLSTMStack
 from adam import Adam
 from note_encodings import Encoding
+import leadsheet
 
 import itertools
 import functools
@@ -18,15 +19,18 @@ from theano.compile.nanguardmode import NanGuardMode
 
 
 class ProductOfExpertsModel(object):
-    def __init__(self, encodings, all_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False, unroll_batch_num=None):
+    def __init__(self, encodings, all_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False, unroll_batch_num=None, bounds=constants.BOUNDS):
         self.encodings = encodings
+
+        self.bounds = bounds
+        
         if shift_modes is None:
             shift_modes = ["drop"]*len(encodings)
 
         if inputs is None:
             inputs = [[
                 input_parts.BeatInputPart(),
-                input_parts.PositionInputPart(constants.LOW_BOUND, constants.HIGH_BOUND, 2),
+                input_parts.PositionInputPart(self.bounds.lowbound, self.bounds.highbound, 2),
                 input_parts.ChordShiftInputPart()]]*len(self.encodings)
 
         self.all_layer_sizes = all_layer_sizes
@@ -95,7 +99,7 @@ class ProductOfExpertsModel(object):
                                                                                 encoded_melody[:,:-1,:] ], 1),
                                                             deterministic_dropout=det_dropout)
 
-                out_probs = encoding.decode_to_probs(activations, relative_pos, constants.LOW_BOUND, constants.HIGH_BOUND)
+                out_probs = encoding.decode_to_probs(activations, relative_pos, self.bounds.lowbound, self.bounds.highbound)
                 all_out_probs.append(out_probs)
             reduced_out_probs = functools.reduce((lambda x,y: x*y), all_out_probs)
             normsum = T.sum(reduced_out_probs, 2, keepdims=True)
@@ -130,11 +134,12 @@ class ProductOfExpertsModel(object):
         chord_roots = []
         chord_types = []
         for m,c in zip(melody,chords):
+            m = leadsheet.constrain_melody(m, self.bounds)
             for i,encoding in enumerate(self.encodings):
                 e_m, r_p = encoding.encode_melody_and_position(m,c)
                 encoded_melodies[i].append(e_m)
                 relative_posns[i].append(r_p)
-            correct_notes.append(Encoding.encode_absolute_melody(m, constants.LOW_BOUND, constants.HIGH_BOUND))
+            correct_notes.append(Encoding.encode_absolute_melody(m, self.bounds.lowbound, self.bounds.highbound))
             c_roots, c_types = zip(*c)
             chord_roots.append(c_roots)
             chord_types.append(c_types)
@@ -202,7 +207,7 @@ class ProductOfExpertsModel(object):
             chord_roots.append(c_roots)
             chord_types.append(c_types)
         chosen = self.generate_fun(np.array(chord_roots, np.int32),np.array(chord_types, np.float32))
-        return [Encoding.decode_absolute_melody(c, constants.LOW_BOUND, constants.HIGH_BOUND) for c in chosen]
+        return [Encoding.decode_absolute_melody(c, self.bounds.lowbound, self.bounds.highbound) for c in chosen]
 
     def generate_visualize(self, chords):
         assert self.generate_fun is not None, "Need to call setup_generate before generate"
@@ -215,7 +220,7 @@ class ProductOfExpertsModel(object):
         stuff = self.generate_visualize_fun(chord_roots, chord_types)
         chosen, all_probs = stuff[:2]
 
-        melody = [Encoding.decode_absolute_melody(c, constants.LOW_BOUND, constants.HIGH_BOUND) for c in chosen]
+        melody = [Encoding.decode_absolute_melody(c, self.bounds.lowbound, self.bounds.highbound) for c in chosen]
         return melody, chosen, all_probs, stuff[2:]
 
     def setup_produce(self):
@@ -248,14 +253,14 @@ def helper_generate_from_spec(specs, lstmstacks, encodings, srng, n_batch, n_tim
         for scan_rout, encoding in zip(scan_routs, encodings):
             last_rel_pos, last_out, cur_kwargs = scan_rout.send(None)
 
-            new_pos = encoding.get_new_relative_position(last_absolute_chosen, last_rel_pos, last_out, constants.LOW_BOUND, constants.HIGH_BOUND, **cur_kwargs)
+            new_pos = encoding.get_new_relative_position(last_absolute_chosen, last_rel_pos, last_out, self.bounds.lowbound, self.bounds.highbound, **cur_kwargs)
             new_posns.append(new_pos)
             addtl_kwargs = {
                 "last_output": last_out
             }
 
             out_activations = scan_rout.send((new_pos, addtl_kwargs))
-            out_probs = encoding.decode_to_probs(out_activations,new_pos,constants.LOW_BOUND, constants.HIGH_BOUND)
+            out_probs = encoding.decode_to_probs(out_activations,new_pos,self.bounds.lowbound, self.bounds.highbound)
             all_out_probs.append(out_probs)
 
         reduced_out_probs = functools.reduce((lambda x,y: x*y), all_out_probs)
@@ -267,7 +272,7 @@ def helper_generate_from_spec(specs, lstmstacks, encodings, srng, n_batch, n_tim
 
         outputs = []
         for scan_rout, encoding, new_pos in zip(scan_routs, encodings, new_posns):
-            encoded_output = encoding.note_to_encoding(sampled_note, new_pos, constants.LOW_BOUND, constants.HIGH_BOUND)
+            encoded_output = encoding.note_to_encoding(sampled_note, new_pos, self.bounds.lowbound, self.bounds.highbound)
             scan_outputs = scan_rout.send(encoded_output)
             scan_rout.close()
             outputs.extend(scan_outputs)

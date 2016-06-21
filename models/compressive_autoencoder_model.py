@@ -11,6 +11,7 @@ from queue_managers import QueueManager
 from adam import Adam
 from note_encodings import Encoding
 from .product_model import helper_generate_from_spec
+import leadsheet
 
 import itertools
 import functools
@@ -19,8 +20,10 @@ from theano.compile.nanguardmode import NanGuardMode
 
 
 class CompressiveAutoencoderModel( object ):
-    def __init__(self, queue_manager, encodings, enc_layer_sizes, dec_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False, loss_mode="priority", hide_output=True, unroll_batch_num=None):
-        
+    def __init__(self, queue_manager, encodings, enc_layer_sizes, dec_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False, loss_mode="priority", hide_output=True, unroll_batch_num=None, bounds=constants.BOUNDS):
+
+        self.bounds = bounds
+
         self.qman = queue_manager
 
         self.encodings = encodings
@@ -30,7 +33,7 @@ class CompressiveAutoencoderModel( object ):
         if inputs is None:
             inputs = [[
                 input_parts.BeatInputPart(),
-                input_parts.PositionInputPart(constants.LOW_BOUND, constants.HIGH_BOUND, 2),
+                input_parts.PositionInputPart(self.bounds.lowbound, self.bounds.highbound, 2),
                 input_parts.ChordShiftInputPart()]]*len(self.encodings)
 
         self.enc_layer_sizes = enc_layer_sizes
@@ -61,7 +64,6 @@ class CompressiveAutoencoderModel( object ):
 
         assert loss_mode in ["priority","add","cutoff"], "Invalid loss mode {}".format(loss_mode)
         self.loss_mode = loss_mode
-
         if setup:
             print("Setting up train")
             self.setup_train()
@@ -122,7 +124,7 @@ class CompressiveAutoencoderModel( object ):
                                                             last_output=T.concatenate([T.tile(encoding.initial_encoded_form(), (n_batch,1,1)),
                                                                                 encoded_melody[:,:-1,:] ], 1),
                                                             deterministic_dropout=det_dropout)
-                out_probs = encoding.decode_to_probs(activations, relative_pos, constants.LOW_BOUND, constants.HIGH_BOUND)
+                out_probs = encoding.decode_to_probs(activations, relative_pos, self.bounds.lowbound, self.bounds.highbound)
                 all_out_probs.append(out_probs)
 
             reduced_out_probs = functools.reduce((lambda x,y: x*y), all_out_probs)
@@ -171,11 +173,12 @@ class CompressiveAutoencoderModel( object ):
         chord_roots = []
         chord_types = []
         for m,c in zip(melody,chords):
+            m = leadsheet.constrain_melody(m, self.bounds)
             for i,encoding in enumerate(self.encodings):
                 e_m, r_p = encoding.encode_melody_and_position(m,c)
                 encoded_melodies[i].append(e_m)
                 relative_posns[i].append(r_p)
-            correct_notes.append(Encoding.encode_absolute_melody(m, constants.LOW_BOUND, constants.HIGH_BOUND))
+            correct_notes.append(Encoding.encode_absolute_melody(m, self.bounds.lowbound, self.bounds.highbound))
             c_roots, c_types = zip(*c)
             chord_roots.append(c_roots)
             chord_types.append(c_types)
@@ -285,7 +288,7 @@ class CompressiveAutoencoderModel( object ):
             chord_roots.append(c_roots)
             chord_types.append(c_types)
         chosen = self.decode_fun(np.array(chord_roots, np.int32), np.array(chord_types, np.float32), feat_strengths, feat_vects)
-        return [Encoding.decode_absolute_melody(c, constants.LOW_BOUND, constants.HIGH_BOUND) for c in chosen]
+        return [Encoding.decode_absolute_melody(c, self.bounds.lowbound, self.bounds.highbound) for c in chosen]
 
     def decode_visualize(self, chords, feat_strengths, feat_vects):
         assert self.decode_visualize_fun is not None, "Need to call setup_decode before decode_visualize"
@@ -298,7 +301,7 @@ class CompressiveAutoencoderModel( object ):
         stuff = self.decode_visualize_fun(np.array(chord_roots, np.int32), np.array(chord_types, np.float32), feat_strengths, feat_vects)
         chosen, all_probs = stuff[:2]
 
-        melody = [Encoding.decode_absolute_melody(c, constants.LOW_BOUND, constants.HIGH_BOUND) for c in chosen]
+        melody = [Encoding.decode_absolute_melody(c, self.bounds.lowbound, self.bounds.highbound) for c in chosen]
         return melody, chosen, all_probs, stuff[2:]
 
     def setup_produce(self):

@@ -108,10 +108,6 @@ def parse_note(nstr):
         midival = None
     else:
         midival = constants.MIDDLE_C_MIDI + (constants.OCTAVE * octaveshift) + constants.NOTE_OFFSETS[note]
-        while midival >= constants.HIGH_BOUND:
-            midival -= 12
-        while midival < constants.LOW_BOUND:
-            midival += 12
 
     duration = parse_duration(duration_str)
 
@@ -179,6 +175,19 @@ def parse_leadsheet(fn,verbose=False):
     assert mlen % clen == 0, "Notes and chords don't match: {}, {}".format(clen,mlen)
 
     return chords, melody
+
+def constrain_melody(melody,bounds):
+    new_melody = []
+    for n,dur in melody:
+        if n is None:
+            new_melody.append((n,dur))
+        else:
+            while n >= bounds.highbound:
+                n -= 12
+            while n < bounds.lowbound:
+                n += 12
+            new_melody.append((n,dur))
+    return new_melody
 
 def get_leadsheet_length(chords, melody):
     return sum(dur for n,dur in melody)

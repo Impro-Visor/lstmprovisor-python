@@ -1,4 +1,4 @@
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 import numpy as np
 
 CHORD_TYPES = {
@@ -173,5 +173,6 @@ OCTAVE = 12
 
 EPSILON = np.finfo(np.float32).eps
 
-LOW_BOUND = 48
-HIGH_BOUND = 84+1
+NoteBounds = namedtuple("NoteBounds",["lowbound","highbound"])
+
+BOUNDS = NoteBounds(48, 84+1)
