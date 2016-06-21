@@ -1,6 +1,6 @@
 import argparse
 
-def main(modeltype, dataset="dataset", outputdir="output", resume=None, check_nan=False, generate=False, generate_over=None):
+def main(modeltype, dataset="dataset", outputdir="output", validation=None, resume=None, check_nan=False, generate=False, generate_over=None):
     from models import SimpleModel, ProductOfExpertsModel, CompressiveAutoencoderModel
     from note_encodings import AbsoluteSequentialEncoding, RelativeJumpEncoding, ChordRelativeEncoding
     from queue_managers import StandardQueueManager, VariationalQueueManager
@@ -138,12 +138,13 @@ def main(modeltype, dataset="dataset", outputdir="output", resume=None, check_na
         else:
             training.generate(m, leadsheets, os.path.join(outputdir, "generated"), with_vis=True)
     else:
-        training.train(m, leadsheets, 50000, outputdir, start_idx)
+        training.train(m, leadsheets, 50000, outputdir, start_idx, validation_leadsheets=validation)
         pickle.dump( m.params, open( os.path.join(outputdir, "final_params.p"), "wb" ) )
 
 parser = argparse.ArgumentParser(description='Train a neural network model.')
 parser.add_argument('modeltype', help='Type of model to construct')
 parser.add_argument('--dataset', default='dataset', help='Path to dataset folder (with .ls files)')
+parser.add_argument('--validation', help='Path to validation dataset folder (with .ls files)')
 parser.add_argument('--outputdir', default='output', help='Path to output folder')
 parser.add_argument('--check_nan', action='store_true', help='Check for nans during execution')
 parser.add_argument('--resume', nargs=2, metavar=('TIMESTEP', 'PARAMFILE'), default=None, help='Where to restore from: timestep, and file to load')
