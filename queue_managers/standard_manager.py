@@ -36,6 +36,7 @@ class StandardQueueManager( QueueManager ):
         pre_vects = input_activations[:,:,1:]
 
         strengths = T.nnet.sigmoid(pre_strengths)
+        strengths = T.set_subtensor(strengths[:,-1],1)
 
         flat_pre_vects = T.reshape(pre_vects,(-1,self.feature_size))
         flat_vects = self._vector_activation_fun( flat_pre_vects )

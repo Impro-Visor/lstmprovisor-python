@@ -19,7 +19,7 @@ from theano.compile.nanguardmode import NanGuardMode
 
 
 class CompressiveAutoencoderModel( object ):
-    def __init__(self, queue_manager, encodings, enc_layer_sizes, dec_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False, unroll_batch_num=None):
+    def __init__(self, queue_manager, encodings, enc_layer_sizes, dec_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False, loss_mode="priority", hide_output=True, unroll_batch_num=None):
         
         self.qman = queue_manager
 
@@ -44,10 +44,9 @@ class CompressiveAutoencoderModel( object ):
             enc_lstmstack = RelativeShiftLSTMStack(enc_parts, enc_layer_sizes, self.qman.activation_width, encoding.WINDOW_SIZE, dropout, mode=shift_mode, unroll_batch_num=unroll_batch_num)
             self.enc_lstmstacks.append(enc_lstmstack)
 
-            dec_parts = ipt + [
-                input_parts.PassthroughInputPart("cur_feature", self.qman.feature_size),
-                input_parts.PassthroughInputPart("last_output", encoding.ENCODING_WIDTH)
-            ]
+            dec_parts = ipt + [ input_parts.PassthroughInputPart("cur_feature", self.qman.feature_size) ]
+            if not hide_output:
+                dec_parts.append(input_parts.PassthroughInputPart("last_output", encoding.ENCODING_WIDTH))
             dec_lstmstack = RelativeShiftLSTMStack(dec_parts, dec_layer_sizes, encoding.RAW_ENCODING_WIDTH, encoding.WINDOW_SIZE, dropout, mode=shift_mode, unroll_batch_num=unroll_batch_num)
             self.dec_lstmstacks.append(dec_lstmstack)
 
@@ -59,6 +58,9 @@ class CompressiveAutoencoderModel( object ):
         self.dec_fun = None
 
         self.nanguard = nanguard
+
+        assert loss_mode in ["priority","add","cutoff"], "Invalid loss mode {}".format(loss_mode)
+        self.loss_mode = loss_mode
 
         if setup:
             print("Setting up train")
@@ -129,7 +131,13 @@ class CompressiveAutoencoderModel( object ):
             norm_out_probs = reduced_out_probs/normsum
             reconstruction_loss, reconstruction_info = Encoding.compute_loss(norm_out_probs, correct_notes, extra_info=True)
 
-            full_loss = queue_loss + reconstruction_loss
+            if self.loss_mode is "add":
+                full_loss = queue_loss + reconstruction_loss
+            elif self.loss_mode is "priority":
+                full_loss = reconstruction_loss + queue_loss/(1+theano.gradient.disconnected_grad(reconstruction_loss))
+            elif self.loss_mode is "cutoff":
+                full_loss = T.switch(reconstruction_loss<1, reconstruction_loss+queue_loss, reconstruction_loss)
+
             full_info = queue_info.copy()
             full_info.update(reconstruction_info)
             full_info["queue_loss"] = queue_loss

@@ -33,6 +33,7 @@ class VariationalQueueManager( QueueManager ):
     def helper_sample(self, input_activations):
         pre_strengths = input_activations[:,:,0]
         strengths = T.nnet.sigmoid(pre_strengths)
+        strengths = T.set_subtensor(strengths[:,-1],1)
 
         means = input_activations[:,:,1:1+self.feature_size]
         stdevs = input_activations[:,:,1+self.feature_size:]
