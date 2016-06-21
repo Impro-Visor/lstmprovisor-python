@@ -65,6 +65,17 @@ def main(modeltype, dataset="dataset", outputdir="output", validation=None, resu
                   input_parts.ChordShiftInputPart()]],
                 shift_modes=["drop"],
                 dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
+        "compae_std_abs_wipt": (lambda:
+            CompressiveAutoencoderModel(
+                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
+                [AbsoluteSequentialEncoding(constants.BOUNDS.lowbound, constants.BOUNDS.highbound)],
+                [[(300,0),(300,0)]],
+                [[(300,0),(300,0)]],
+                inputs=[[input_parts.BeatInputPart(),
+                  input_parts.ChordShiftInputPart()]],
+                shift_modes=["drop"],
+                hide_output=False,
+                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
         "compae_std_rel": (lambda:
             CompressiveAutoencoderModel(
                 StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
@@ -80,6 +91,15 @@ def main(modeltype, dataset="dataset", outputdir="output", validation=None, resu
                 [[(200,10),(200,10)], [(200,10),(200,10)]],
                 [[(200,10),(200,10)], [(200,10),(200,10)]],
                 shift_modes=["drop","roll"],
+                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
+        "compae_std_poex_wipt": (lambda:
+            CompressiveAutoencoderModel(
+                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
+                [RelativeJumpEncoding(), ChordRelativeEncoding()],
+                [[(200,10),(200,10)], [(200,10),(200,10)]],
+                [[(200,10),(200,10)], [(200,10),(200,10)]],
+                shift_modes=["drop","roll"],
+                hide_output=False,
                 dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
         "compae_var_abs": (lambda:
             CompressiveAutoencoderModel(
@@ -106,6 +126,15 @@ def main(modeltype, dataset="dataset", outputdir="output", validation=None, resu
                 [[(200,10),(200,10)], [(200,10),(200,10)]],
                 [[(200,10),(200,10)], [(200,10),(200,10)]],
                 shift_modes=["drop","roll"],
+                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
+        "compae_var_poex_wipt": (lambda:
+            CompressiveAutoencoderModel(
+                VariationalQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
+                [RelativeJumpEncoding(), ChordRelativeEncoding()],
+                [[(200,10),(200,10)], [(200,10),(200,10)]],
+                [[(200,10),(200,10)], [(200,10),(200,10)]],
+                shift_modes=["drop","roll"],
+                hide_output=False,
                 dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
     }
     assert modeltype in model_builders, "{} is not a valid model. Try one of {}".format(modeltype, list(model_builders.keys()))
