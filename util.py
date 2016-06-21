@@ -1,6 +1,7 @@
 import theano
 import theano.tensor as T
 import numpy as np
+from theano_lstm import MultiDropout
 
 def has_hidden(layer):
     """
@@ -44,3 +45,11 @@ def ensure_list(result):
         return result
     else:
         return [result]
+
+def UpscaleMultiDropout(shapes, dropout = 0.):
+    """
+    Return all the masks needed for dropout outside of a scan loop.
+    """
+    orig_masks = MultiDropout(shapes, dropout)
+    fixed_masks = [m / (1-dropout) for m in orig_masks]
+    return fixed_masks

@@ -3,7 +3,7 @@ import theano.tensor as T
 import numpy as np
 
 
-from theano_lstm import LSTM, StackedCells, Layer, MultiDropout
+from theano_lstm import LSTM, StackedCells, Layer
 from util import *
 
 from collections import namedtuple
@@ -59,7 +59,7 @@ class RelativeShiftLSTMStack( object ):
         for l, val in zip((l for l in self.cells.layers if has_hidden(l)), paramlist[len(self.cells.params):]):
             l.initial_hidden_state.set_value(val.get_value())
 
-    def perform_step(self, in_data, shifts, hiddens, dropout_masks=None):
+    def perform_step(self, in_data, shifts, hiddens, dropout_masks=[]):
         """
         Perform a step through the LSTM network.
 
@@ -67,7 +67,7 @@ class RelativeShiftLSTMStack( object ):
         shifts: A theano tensor (int32) of shape (batch), giving the relative
             shifts to apply to the last hiddens
         hiddens: A list of hiddens [layer](batch, hidden_idx)
-        dropout_masks: If None, apply dropout deterministically. Otherwise, should
+        dropout_masks: If [], apply dropout deterministically. Otherwise, should
             be a set of masks returned by get_dropout_masks, generally passed through
             a scan as a non-sequence.
         """
@@ -119,11 +119,8 @@ class RelativeShiftLSTMStack( object ):
             new_layer_hiddens = T.concatenate([indep_mem, new_per_note_mem, remaining_values], 1)
             new_hiddens.append(new_layer_hiddens)
 
-        if not self.dropout:
+        if dropout_masks == [] or not self.dropout:
             masks = []
-        elif dropout_masks is None:
-            masks = [1 - self.dropout for layer in self.cells.layers]
-            masks[0] = None
         else:
             masks = [None] + dropout_masks
         new_states = self.cells.forward(in_data, prev_hiddens=new_hiddens, dropout=masks)
@@ -165,22 +162,18 @@ class RelativeShiftLSTMStack( object ):
 
         def _scan_fn(in_data, shifts, *other):
             other = list(other)
-            if not self.dropout:
-                masks = []
-                hiddens = other
-            elif deterministic_dropout:
-                masks = [1 - self.dropout for layer in self.cells.layers]
-                masks[0] = None
-                hiddens = other
-            else:
+            if self.dropout and not deterministic_dropout:
                 split = -len(self.tot_layer_sizes)
                 hiddens = other[:split]
                 masks = [None] + other[split:]
+            else:
+                masks = []
+                hiddens = other
 
             return self.perform_step(in_data, shifts, hiddens, dropout_masks=masks)
 
         if self.dropout and not deterministic_dropout:
-            dropout_masks = MultiDropout( [(n_batch, shape) for shape in self.tot_layer_sizes], self.dropout)
+            dropout_masks = UpscaleMultiDropout( [(n_batch, shape) for shape in self.tot_layer_sizes], self.dropout)
         else:
             dropout_masks = []
 
@@ -222,7 +215,7 @@ class RelativeShiftLSTMStack( object ):
         }
 
         if self.dropout and not deterministic_dropout:
-            dropout_masks = MultiDropout( [(n_batch, shape) for shape in self.tot_layer_sizes], self.dropout)
+            dropout_masks = UpscaleMultiDropout( [(n_batch, shape) for shape in self.tot_layer_sizes], self.dropout)
         else:
             dropout_masks = []
 
@@ -266,17 +259,13 @@ class RelativeShiftLSTMStack( object ):
         last_pos, last_out = stuff[I:I+2]
         other = stuff[I+2:]
 
-        if not self.dropout:
-            masks = []
-            hiddens = other
-        elif spec.deterministic_dropout:
-            masks = [1 - self.dropout for layer in self.cells.layers]
-            masks[0] = None
-            hiddens = other
-        else:
+        if self.dropout and not deterministic_dropout:
             split = -len(self.tot_layer_sizes)
             hiddens = other[:split]
             masks = [None] + other[split:]
+        else:
+            masks = []
+            hiddens = other
 
         cur_pos, addtl_kwargs = yield(last_pos, last_out, cur_kwargs)
         shift = cur_pos - last_pos
