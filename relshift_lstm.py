@@ -259,7 +259,7 @@ class RelativeShiftLSTMStack( object ):
         last_pos, last_out = stuff[I:I+2]
         other = stuff[I+2:]
 
-        if self.dropout and not deterministic_dropout:
+        if self.dropout and not spec.deterministic_dropout:
             split = -len(self.tot_layer_sizes)
             hiddens = other[:split]
             masks = [None] + other[split:]
