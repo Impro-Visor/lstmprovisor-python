@@ -1,4 +1,7 @@
 import argparse
+import time
+import sys
+import os
 
 def main(modeltype, dataset="dataset", outputdir="output", validation=None, resume=None, check_nan=False, generate=False, generate_over=None):
     from models import SimpleModel, ProductOfExpertsModel, CompressiveAutoencoderModel
@@ -11,12 +14,11 @@ def main(modeltype, dataset="dataset", outputdir="output", validation=None, resu
     import theano
     import theano.tensor as T
 
-    import sys
-    import os
 
     import numpy as np
     import relative_data
     import constants
+
 
     generate = generate or (generate_over is not None)
     should_setup = not generate
@@ -193,7 +195,10 @@ def main(modeltype, dataset="dataset", outputdir="output", validation=None, resu
         os.makedirs(outputdir)
 
     if generate:
+        print("Setting up generation")
         m.setup_produce()
+        print("Starting to generate")
+        start_time = time.process_time()
         if generate_over is not None:
             source, divwidth = generate_over
             if divwidth == 'full':
@@ -212,6 +217,8 @@ def main(modeltype, dataset="dataset", outputdir="output", validation=None, resu
             training.generate(m, leadsheets, os.path.join(outputdir, "generated"), with_vis=True, batch=batch)
         else:
             training.generate(m, leadsheets, os.path.join(outputdir, "generated"), with_vis=True)
+        end_time = time.process_time()
+        print("Generation took {} seconds.".format(end_time-start_time))
     else:
         training.train(m, leadsheets, 50000, outputdir, start_idx, validation_leadsheets=validation)
         pickle.dump( m.params, open( os.path.join(outputdir, "final_params.p"), "wb" ) )
