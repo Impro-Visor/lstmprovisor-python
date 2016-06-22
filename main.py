@@ -76,6 +76,29 @@ def main(modeltype, dataset="dataset", outputdir="output", validation=None, resu
                 shift_modes=["drop"],
                 hide_output=False,
                 dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
+        "compae_std_cot": (lambda:
+            CompressiveAutoencoderModel(
+                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
+                [CircleOfThirdsEncoding(constants.BOUNDS.lowbound, (constants.BOUNDS.highbound-constants.BOUNDS.lowbound)//12)],
+                [[(300,0),(300,0)]],
+                [[(300,0),(300,0)]],
+                inputs=[[input_parts.BeatInputPart(),
+                  input_parts.ChordShiftInputPart()]],
+                shift_modes=["drop"],
+                bounds=constants.NoteBounds(48, 84),
+                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
+        "compae_std_cot_wipt": (lambda:
+            CompressiveAutoencoderModel(
+                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
+                [CircleOfThirdsEncoding(constants.BOUNDS.lowbound, (constants.BOUNDS.highbound-constants.BOUNDS.lowbound)//12)],
+                [[(300,0),(300,0)]],
+                [[(300,0),(300,0)]],
+                inputs=[[input_parts.BeatInputPart(),
+                  input_parts.ChordShiftInputPart()]],
+                shift_modes=["drop"],
+                hide_output=False,
+                bounds=constants.NoteBounds(48, 84),
+                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
         "compae_std_rel": (lambda:
             CompressiveAutoencoderModel(
                 StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
@@ -98,6 +121,23 @@ def main(modeltype, dataset="dataset", outputdir="output", validation=None, resu
                 [RelativeJumpEncoding(), ChordRelativeEncoding()],
                 [[(200,10),(200,10)], [(200,10),(200,10)]],
                 [[(200,10),(200,10)], [(200,10),(200,10)]],
+                shift_modes=["drop","roll"],
+                hide_output=False,
+                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
+        "compae_std_poex_npn": (lambda:
+            CompressiveAutoencoderModel(
+                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
+                [RelativeJumpEncoding(), ChordRelativeEncoding()],
+                [[(300,0),(300,0)], [(300,0),(300,0)]],
+                [[(300,0),(300,0)], [(300,0),(300,0)]],
+                shift_modes=["drop","roll"],
+                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
+        "compae_std_poex_npn_wipt": (lambda:
+            CompressiveAutoencoderModel(
+                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
+                [RelativeJumpEncoding(), ChordRelativeEncoding()],
+                [[(300,0),(300,0)], [(300,0),(300,0)]],
+                [[(300,0),(300,0)], [(300,0),(300,0)]],
                 shift_modes=["drop","roll"],
                 hide_output=False,
                 dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
