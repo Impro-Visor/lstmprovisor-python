@@ -263,7 +263,7 @@ class CompressiveAutoencoderModel( object ):
                                                     deterministic_dropout=True )
                     for lstmstack, encoding in zip(self.dec_lstmstacks, self.encodings)]
 
-        updates, all_chosen, all_probs, indiv_probs = helper_generate_from_spec(specs, self.dec_lstmstacks, self.encodings, self.srng, n_batch, n_time)
+        updates, all_chosen, all_probs, indiv_probs = helper_generate_from_spec(specs, self.dec_lstmstacks, self.encodings, self.srng, n_batch, n_time, self.bounds)
 
         self.decode_fun = theano.function(
             inputs=[chord_roots, chord_types, feat_strengths, feat_vects],

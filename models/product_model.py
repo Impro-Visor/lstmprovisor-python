@@ -181,7 +181,7 @@ class ProductOfExpertsModel(object):
                                                     deterministic_dropout=True )
                     for lstmstack, encoding in zip(self.lstmstacks, self.encodings)]
 
-        updates, all_chosen, all_probs, indiv_probs = helper_generate_from_spec(specs, self.lstmstacks, self.encodings, self.srng, n_batch, n_time)
+        updates, all_chosen, all_probs, indiv_probs = helper_generate_from_spec(specs, self.lstmstacks, self.encodings, self.srng, n_batch, n_time, self.bounds)
 
         self.generate_fun = theano.function(
             inputs=[chord_roots, chord_types],
@@ -229,7 +229,7 @@ class ProductOfExpertsModel(object):
     def produce(self, chords, melody):
         return self.generate_visualize(chords)
 
-def helper_generate_from_spec(specs, lstmstacks, encodings, srng, n_batch, n_time):
+def helper_generate_from_spec(specs, lstmstacks, encodings, srng, n_batch, n_time, bounds):
     """Helper function to generate through a product LSTM model"""
     def _scan_fn(*inputs):
         # inputs is [ spec_sequences..., last_absolute_position, spec_taps..., spec_non_sequences... ]
@@ -253,14 +253,14 @@ def helper_generate_from_spec(specs, lstmstacks, encodings, srng, n_batch, n_tim
         for scan_rout, encoding in zip(scan_routs, encodings):
             last_rel_pos, last_out, cur_kwargs = scan_rout.send(None)
 
-            new_pos = encoding.get_new_relative_position(last_absolute_chosen, last_rel_pos, last_out, self.bounds.lowbound, self.bounds.highbound, **cur_kwargs)
+            new_pos = encoding.get_new_relative_position(last_absolute_chosen, last_rel_pos, last_out, bounds.lowbound, bounds.highbound, **cur_kwargs)
             new_posns.append(new_pos)
             addtl_kwargs = {
                 "last_output": last_out
             }
 
             out_activations = scan_rout.send((new_pos, addtl_kwargs))
-            out_probs = encoding.decode_to_probs(out_activations,new_pos,self.bounds.lowbound, self.bounds.highbound)
+            out_probs = encoding.decode_to_probs(out_activations,new_pos,bounds.lowbound, bounds.highbound)
             all_out_probs.append(out_probs)
 
         reduced_out_probs = functools.reduce((lambda x,y: x*y), all_out_probs)
@@ -272,7 +272,7 @@ def helper_generate_from_spec(specs, lstmstacks, encodings, srng, n_batch, n_tim
 
         outputs = []
         for scan_rout, encoding, new_pos in zip(scan_routs, encodings, new_posns):
-            encoded_output = encoding.note_to_encoding(sampled_note, new_pos, self.bounds.lowbound, self.bounds.highbound)
+            encoded_output = encoding.note_to_encoding(sampled_note, new_pos, bounds.lowbound, bounds.highbound)
             scan_outputs = scan_rout.send(encoded_output)
             scan_rout.close()
             outputs.extend(scan_outputs)
