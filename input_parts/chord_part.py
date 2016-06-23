@@ -30,7 +30,7 @@ class ChordShiftInputPart( InputPart ):
         """
         def _map_fn(pos, chord):
             # Now pos is scalar and chord is of shape (CHORD_WIDTH), so we can roll
-            return T.roll(chord, -pos, 0)
+            return T.roll(chord, (-pos)%12, 0)
 
         shifted_chords, _ = theano.map(_map_fn, sequences=[relative_position-cur_chord_root, cur_chord_type])
 

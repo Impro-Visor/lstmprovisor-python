@@ -56,21 +56,19 @@ class ChordRelativeEncoding( Encoding ):
         n_parallel = squashed.shape[0]
         probs = T.nnet.softmax(squashed)
 
+
         def _scan_fn(cprobs, cpos):
-            # cprobs = theano.printing.Print("cprobs",['shape'])(cprobs)
-            # cpos = theano.printing.Print("cpos",['shape'])(cpos)
 
             abs_probs = cprobs[:2]
             rel_probs = cprobs[2:]
 
-            aligned = T.roll(rel_probs, cpos-low_bound)
+            aligned = T.roll(rel_probs, (cpos-low_bound)%12)
 
             num_tile = int(math.ceil((high_bound-low_bound)/self.WINDOW_SIZE))
 
             tiled = T.tile(aligned, (num_tile,))[:(high_bound-low_bound)]
 
             full = T.concatenate([abs_probs, tiled], 0)
-            # full = theano.printing.Print("full",['shape'])(full)
             return full
 
         # probs = theano.printing.Print("probs",['shape'])(probs)

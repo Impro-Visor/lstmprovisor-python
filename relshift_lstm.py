@@ -105,7 +105,7 @@ class RelativeShiftLSTMStack( object ):
                     take_part = c_mem[_clamp_w(c_shift):self.window_size-_clamp_w(-c_shift),:]
                     return T.concatenate([ins_at_front, take_part, ins_at_back], 0)
                 elif self.mode=="roll":
-                    return T.roll(c_mem, -c_shift, axis=0)
+                    return T.roll(c_mem, (-c_shift)%12, axis=0)
 
             if self.unroll_batch_num is None:
                 shifted_mem, _ = theano.map(_shift_step, [separated_mem, shifts])
@@ -191,7 +191,7 @@ class RelativeShiftLSTMStack( object ):
         Parameters:
             kwargs[k]: should be a theano tensor of shape (n_batch, n_time, ... )
                 Note that "relative_position" should be a keyword argument given here if there are relative
-                shifts.
+                shifts, as should "timestep"
             start_pos: a theano tensor of shape (n_batch) giving the initial position passed to the
                 out_to_in function
             start_out: a theano tensor of shape (n_batch, X) giving the initial "output" passed
@@ -268,13 +268,13 @@ class RelativeShiftLSTMStack( object ):
             hiddens = other
 
         cur_pos, addtl_kwargs = yield(last_pos, last_out, cur_kwargs)
-        shift = cur_pos - last_pos
-
         all_kwargs = {
             "relative_position": cur_pos
         }
         all_kwargs.update(cur_kwargs)
         all_kwargs.update(addtl_kwargs)
+
+        shift = T.switch(T.eq(all_kwargs["timestep"],0), 0, cur_pos - last_pos)
 
         full_input = T.concatenate([ part.generate(**all_kwargs) for part in self.input_parts ], 1)
 
