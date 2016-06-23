@@ -2,185 +2,101 @@ import argparse
 import time
 import sys
 import os
+import collections
 
-def main(modeltype, dataset="dataset", outputdir="output", validation=None, resume=None, check_nan=False, generate=False, generate_over=None):
-    from models import SimpleModel, ProductOfExpertsModel, CompressiveAutoencoderModel
-    from note_encodings import AbsoluteSequentialEncoding, RelativeJumpEncoding, ChordRelativeEncoding, CircleOfThirdsEncoding
-    from queue_managers import StandardQueueManager, VariationalQueueManager
-    import input_parts
-    import leadsheet
-    import training
-    import pickle
-    import theano
-    import theano.tensor as T
+from models import SimpleModel, ProductOfExpertsModel, CompressiveAutoencoderModel
+from note_encodings import AbsoluteSequentialEncoding, RelativeJumpEncoding, ChordRelativeEncoding, CircleOfThirdsEncoding
+from queue_managers import StandardQueueManager, VariationalQueueManager
+import input_parts
+import leadsheet
+import training
+import pickle
+import theano
+import theano.tensor as T
 
+import numpy as np
+import relative_data
+import constants
 
-    import numpy as np
-    import relative_data
-    import constants
+ModelBuilder = collections.namedtuple('ModelBuilder',['name', 'build', 'config_args', 'desc'])
+builders = {}
 
+def build_simple(should_setup, check_nan, unroll_batch_num, encode_key, no_per_note):
+    if encode_key == "abs":
+        enc = AbsoluteSequentialEncoding(constants.BOUNDS.lowbound, constants.BOUNDS.highbound)
+    elif encode_key == "cot":
+        enc = CircleOfThirdsEncoding(constants.BOUNDS.lowbound, (constants.BOUNDS.highbound-constants.BOUNDS.lowbound)//12)
+    elif encode_key == "rel":
+        enc = RelativeJumpEncoding()
+    sizes = [(200,10),(200,10)] if (encode_key == "rel" and not no_per_note) else [(300,0),(300,0)]
+    bounds = constants.NoteBounds(48, 84) if encode_key == "cot" else constants.BOUNDS
+    return SimpleModel(enc, sizes, bounds=bounds, dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)
 
+def config_simple(parser):
+    parser.add_argument('encode_key', choices=["abs","cot","rel"], help='Type of encoding to use')
+    parser.add_argument('--no_per_note', action="store_true", help='Remove any note memory cells')
+
+builders['simple'] = ModelBuilder('simple', build_simple, config_simple, 'A simple single-LSTM-stack sequential model')
+
+#######################
+
+def build_poex(should_setup, check_nan, unroll_batch_num, no_per_note):
+    encs = [RelativeJumpEncoding(), ChordRelativeEncoding()]
+    sizes = [[(300,0),(300,0)], [(300,0),(300,0)]] if no_per_note else [[(200,10),(200,10)], [(200,10),(200,10)]]
+
+    return ProductOfExpertsModel(encs, sizes, shift_modes=["drop","roll"],
+        dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)
+
+def config_poex(parser):
+    parser.add_argument('--no_per_note', action="store_true", help='Remove any note memory cells')
+
+builders['poex'] = ModelBuilder('poex', build_poex, config_poex, 'A product-of-experts LSTM sequential model, using note and chord relative encodings.')
+
+#######################
+
+def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_key, no_per_note, hide_output):
+    shift_modes = None
+    if encode_key == "abs":
+        enc = [AbsoluteSequentialEncoding(constants.BOUNDS.lowbound, constants.BOUNDS.highbound)]
+        sizes = [(300,0),(300,0)]
+    elif encode_key == "cot":
+        enc = [CircleOfThirdsEncoding(constants.BOUNDS.lowbound, (constants.BOUNDS.highbound-constants.BOUNDS.lowbound)//12)]
+        sizes = [(300,0),(300,0)]
+    elif encode_key == "rel":
+        enc = [RelativeJumpEncoding()]
+        sizes = [(200,10),(200,10)] if (not no_per_note) else [(300,0),(300,0)]
+        shift_modes=["drop"]
+    elif encode_key == "poex":
+        enc = [RelativeJumpEncoding(), ChordRelativeEncoding()]
+        sizes = [ [(200,10),(200,10)] if (not no_per_note) else [(300,0),(300,0)] ]*2
+        shift_modes=["drop","roll"]
+
+    if queue_key == "std":
+        qman = StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100)))
+    elif queue_key == "var":
+        qman = VariationalQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100)))
+
+    bounds = constants.NoteBounds(48, 84) if encode_key == "cot" else constants.BOUNDS
+
+    return CompressiveAutoencoderModel(qman, enc, sizes, sizes, shift_modes=shift_modes, bounds=bounds, hide_output=hide_output,
+                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)
+
+def config_compae(parser):
+    parser.add_argument('encode_key', choices=["abs","cot","rel","poex"], help='Type of encoding to use')
+    parser.add_argument('queue_key', choices=["std","var"], help='Type of queue manager to use')
+    parser.add_argument('--no_per_note', action="store_true", help='Remove any note memory cells')
+    parser.add_argument('--hide_output', action="store_true", help='Hide previous outputs from the decoder')
+
+builders['compae'] = ModelBuilder('compae', build_compae, config_compae, 'A compressive autoencoder model.')
+
+###################################################################################################################
+
+def main(modeltype, dataset="dataset", outputdir="output", validation=None, resume=None, check_nan=False, generate=False, generate_over=None, **model_kwargs):
     generate = generate or (generate_over is not None)
     should_setup = not generate
     unroll_batch_num = None if generate else training.BATCH_SIZE
-    model_builders = {
-        "simple_abs": (lambda:
-            SimpleModel(
-                AbsoluteSequentialEncoding(constants.BOUNDS.lowbound, constants.BOUNDS.highbound),
-                [(300,0),(300,0)],
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "simple_rel": (lambda:
-            SimpleModel(
-                RelativeJumpEncoding(),
-                [(200,10),(200,10)],
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "simple_rel_npn": (lambda:
-            SimpleModel(
-                RelativeJumpEncoding(),
-                [(300,0),(300,0)],
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "simple_cot": (lambda:
-            SimpleModel(
-                CircleOfThirdsEncoding(constants.BOUNDS.lowbound, (constants.BOUNDS.highbound-constants.BOUNDS.lowbound)//12),
-                [(300,0),(300,0)],
-                bounds=constants.NoteBounds(48, 84),
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "poex": (lambda:
-            ProductOfExpertsModel(
-                [RelativeJumpEncoding(), ChordRelativeEncoding()],
-                [[(200,10),(200,10)], [(200,10),(200,10)]],
-                shift_modes=["drop","roll"],
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "poex_npn": (lambda:
-            ProductOfExpertsModel(
-                [RelativeJumpEncoding(), ChordRelativeEncoding()],
-                [[(300,0),(300,0)], [(300,0),(300,0)]],
-                shift_modes=["drop","roll"],
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "compae_std_abs": (lambda:
-            CompressiveAutoencoderModel(
-                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
-                [AbsoluteSequentialEncoding(constants.BOUNDS.lowbound, constants.BOUNDS.highbound)],
-                [[(300,0),(300,0)]],
-                [[(300,0),(300,0)]],
-                inputs=[[input_parts.BeatInputPart(),
-                  input_parts.ChordShiftInputPart()]],
-                shift_modes=["drop"],
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "compae_std_abs_wipt": (lambda:
-            CompressiveAutoencoderModel(
-                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
-                [AbsoluteSequentialEncoding(constants.BOUNDS.lowbound, constants.BOUNDS.highbound)],
-                [[(300,0),(300,0)]],
-                [[(300,0),(300,0)]],
-                inputs=[[input_parts.BeatInputPart(),
-                  input_parts.ChordShiftInputPart()]],
-                shift_modes=["drop"],
-                hide_output=False,
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "compae_std_cot": (lambda:
-            CompressiveAutoencoderModel(
-                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
-                [CircleOfThirdsEncoding(constants.BOUNDS.lowbound, (constants.BOUNDS.highbound-constants.BOUNDS.lowbound)//12)],
-                [[(300,0),(300,0)]],
-                [[(300,0),(300,0)]],
-                inputs=[[input_parts.BeatInputPart(),
-                  input_parts.ChordShiftInputPart()]],
-                shift_modes=["drop"],
-                bounds=constants.NoteBounds(48, 84),
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "compae_std_cot_wipt": (lambda:
-            CompressiveAutoencoderModel(
-                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
-                [CircleOfThirdsEncoding(constants.BOUNDS.lowbound, (constants.BOUNDS.highbound-constants.BOUNDS.lowbound)//12)],
-                [[(300,0),(300,0)]],
-                [[(300,0),(300,0)]],
-                inputs=[[input_parts.BeatInputPart(),
-                  input_parts.ChordShiftInputPart()]],
-                shift_modes=["drop"],
-                hide_output=False,
-                bounds=constants.NoteBounds(48, 84),
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "compae_std_rel": (lambda:
-            CompressiveAutoencoderModel(
-                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
-                [RelativeJumpEncoding()],
-                [[(200,10),(200,10)]],
-                [[(200,10),(200,10)]],
-                shift_modes=["drop"],
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "compae_std_poex": (lambda:
-            CompressiveAutoencoderModel(
-                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
-                [RelativeJumpEncoding(), ChordRelativeEncoding()],
-                [[(200,10),(200,10)], [(200,10),(200,10)]],
-                [[(200,10),(200,10)], [(200,10),(200,10)]],
-                shift_modes=["drop","roll"],
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "compae_std_poex_wipt": (lambda:
-            CompressiveAutoencoderModel(
-                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
-                [RelativeJumpEncoding(), ChordRelativeEncoding()],
-                [[(200,10),(200,10)], [(200,10),(200,10)]],
-                [[(200,10),(200,10)], [(200,10),(200,10)]],
-                shift_modes=["drop","roll"],
-                hide_output=False,
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "compae_std_poex_npn": (lambda:
-            CompressiveAutoencoderModel(
-                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
-                [RelativeJumpEncoding(), ChordRelativeEncoding()],
-                [[(300,0),(300,0)], [(300,0),(300,0)]],
-                [[(300,0),(300,0)], [(300,0),(300,0)]],
-                shift_modes=["drop","roll"],
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "compae_std_poex_npn_wipt": (lambda:
-            CompressiveAutoencoderModel(
-                StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
-                [RelativeJumpEncoding(), ChordRelativeEncoding()],
-                [[(300,0),(300,0)], [(300,0),(300,0)]],
-                [[(300,0),(300,0)], [(300,0),(300,0)]],
-                shift_modes=["drop","roll"],
-                hide_output=False,
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "compae_var_abs": (lambda:
-            CompressiveAutoencoderModel(
-                VariationalQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
-                [AbsoluteSequentialEncoding(constants.BOUNDS.lowbound, constants.BOUNDS.highbound)],
-                [[(300,0),(300,0)]],
-                [[(300,0),(300,0)]],
-                inputs=[[input_parts.BeatInputPart(),
-                  input_parts.ChordShiftInputPart()]],
-                shift_modes=["drop"],
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "compae_var_rel": (lambda:
-            CompressiveAutoencoderModel(
-                VariationalQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
-                [RelativeJumpEncoding()],
-                [[(200,10),(200,10)]],
-                [[(200,10),(200,10)]],
-                shift_modes=["drop"],
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "compae_var_poex": (lambda:
-            CompressiveAutoencoderModel(
-                VariationalQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
-                [RelativeJumpEncoding(), ChordRelativeEncoding()],
-                [[(200,10),(200,10)], [(200,10),(200,10)]],
-                [[(200,10),(200,10)], [(200,10),(200,10)]],
-                shift_modes=["drop","roll"],
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-        "compae_var_poex_wipt": (lambda:
-            CompressiveAutoencoderModel(
-                VariationalQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100))),
-                [RelativeJumpEncoding(), ChordRelativeEncoding()],
-                [[(200,10),(200,10)], [(200,10),(200,10)]],
-                [[(200,10),(200,10)], [(200,10),(200,10)]],
-                shift_modes=["drop","roll"],
-                hide_output=False,
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)),
-    }
-    assert modeltype in model_builders, "{} is not a valid model. Try one of {}".format(modeltype, list(model_builders.keys()))
-    m = model_builders[modeltype]()
+
+    m = builders[modeltype].build(should_setup, check_nan, unroll_batch_num, **model_kwargs)
 
     leadsheets = training.find_leadsheets(dataset)
 
@@ -223,8 +139,7 @@ def main(modeltype, dataset="dataset", outputdir="output", validation=None, resu
         training.train(m, leadsheets, 50000, outputdir, start_idx, validation_leadsheets=validation)
         pickle.dump( m.params, open( os.path.join(outputdir, "final_params.p"), "wb" ) )
 
-parser = argparse.ArgumentParser(description='Train a neural network model.')
-parser.add_argument('modeltype', help='Type of model to construct')
+parser = argparse.ArgumentParser(description='Train a neural network model.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--dataset', default='dataset', help='Path to dataset folder (with .ls files)')
 parser.add_argument('--validation', help='Path to validation dataset folder (with .ls files)')
 parser.add_argument('--outputdir', default='output', help='Path to output folder')
@@ -234,6 +149,15 @@ group = parser.add_mutually_exclusive_group()
 group.add_argument('--generate', action='store_true', help="Don't train, just generate. Should be used with restore.")
 group.add_argument('--generate_over', nargs=2, metavar=('SOURCE', 'DIV_WIDTH'), default=None, help="Don't train, just generate, and generate over SOURCE chord changes divided into chunks of length DIV_WIDTH (or one contiguous chunk if DIV_WIDTH is 'full'). Can use 'bar' as a unit. Should be used with restore.")
 
+subparsers = parser.add_subparsers(title='Model Types', dest='modeltype', help='Type of model to use. (Note that each model type has additional parameters.)')
+for k,b in builders.items():
+    cur_parser = subparsers.add_parser(k, help=b.desc)
+    b.config_args(cur_parser)
+
 if __name__ == '__main__':
-    args = parser.parse_args()
-    main(**vars(args))
+    np.set_printoptions(linewidth=200)
+    args = vars(parser.parse_args())
+    if args["modeltype"] is None:
+        parser.print_usage()
+    else:
+        main(**args)
