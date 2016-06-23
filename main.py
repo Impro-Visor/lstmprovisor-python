@@ -24,13 +24,16 @@ builders = {}
 def build_simple(should_setup, check_nan, unroll_batch_num, encode_key, no_per_note):
     if encode_key == "abs":
         enc = AbsoluteSequentialEncoding(constants.BOUNDS.lowbound, constants.BOUNDS.highbound)
+        inputs = [input_parts.BeatInputPart(),input_parts.ChordShiftInputPart()]
     elif encode_key == "cot":
         enc = CircleOfThirdsEncoding(constants.BOUNDS.lowbound, (constants.BOUNDS.highbound-constants.BOUNDS.lowbound)//12)
+        inputs = [input_parts.BeatInputPart(),input_parts.ChordShiftInputPart()]
     elif encode_key == "rel":
         enc = RelativeJumpEncoding()
+        inputs = None
     sizes = [(200,10),(200,10)] if (encode_key == "rel" and not no_per_note) else [(300,0),(300,0)]
     bounds = constants.NoteBounds(48, 84) if encode_key == "cot" else constants.BOUNDS
-    return SimpleModel(enc, sizes, bounds=bounds, dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)
+    return SimpleModel(enc, sizes, bounds=bounds, inputs=inputs, dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)
 
 def config_simple(parser):
     parser.add_argument('encode_key', choices=["abs","cot","rel"], help='Type of encoding to use')
@@ -55,30 +58,34 @@ builders['poex'] = ModelBuilder('poex', build_poex, config_poex, 'A product-of-e
 #######################
 
 def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_key, no_per_note, hide_output):
+    bounds = constants.NoteBounds(48, 84) if encode_key == "cot" else constants.BOUNDS
     shift_modes = None
     if encode_key == "abs":
         enc = [AbsoluteSequentialEncoding(constants.BOUNDS.lowbound, constants.BOUNDS.highbound)]
-        sizes = [(300,0),(300,0)]
+        sizes = [[(300,0),(300,0)]]
+        inputs = [[input_parts.BeatInputPart(), input_parts.ChordShiftInputPart()]]
     elif encode_key == "cot":
-        enc = [CircleOfThirdsEncoding(constants.BOUNDS.lowbound, (constants.BOUNDS.highbound-constants.BOUNDS.lowbound)//12)]
-        sizes = [(300,0),(300,0)]
+        enc = [CircleOfThirdsEncoding(bounds.lowbound, (bounds.highbound-bounds.lowbound)//12)]
+        sizes = [[(300,0),(300,0)]]
+        inputs = [[input_parts.BeatInputPart(), input_parts.ChordShiftInputPart()]]
     elif encode_key == "rel":
         enc = [RelativeJumpEncoding()]
-        sizes = [(200,10),(200,10)] if (not no_per_note) else [(300,0),(300,0)]
+        sizes = [[(200,10),(200,10)] if (not no_per_note) else [(300,0),(300,0)]]
         shift_modes=["drop"]
+        inputs = None
     elif encode_key == "poex":
         enc = [RelativeJumpEncoding(), ChordRelativeEncoding()]
         sizes = [ [(200,10),(200,10)] if (not no_per_note) else [(300,0),(300,0)] ]*2
         shift_modes=["drop","roll"]
+        inputs = None
 
     if queue_key == "std":
         qman = StandardQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100)))
     elif queue_key == "var":
         qman = VariationalQueueManager(100, loss_fun=(lambda x: T.log(1+99*x)/T.log(100)))
 
-    bounds = constants.NoteBounds(48, 84) if encode_key == "cot" else constants.BOUNDS
 
-    return CompressiveAutoencoderModel(qman, enc, sizes, sizes, shift_modes=shift_modes, bounds=bounds, hide_output=hide_output,
+    return CompressiveAutoencoderModel(qman, enc, sizes, sizes, shift_modes=shift_modes, bounds=bounds, hide_output=hide_output, inputs=inputs,
                 dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)
 
 def config_compae(parser):
