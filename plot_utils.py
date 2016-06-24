@@ -13,30 +13,45 @@ plt.ion()
 # chosen = np.load('generation/dataset_10000_chosen.npy')
 # chosen_map = np.eye(probs.shape[-1])[chosen]
 
-
-def plot_generated(mat, name=""):
+def plot_note_dist(mat, name="", show_octaves=True):
     f = plt.figure()
     f.canvas.set_window_title(name)
     plt.imshow(mat.T, origin="lower", interpolation="nearest", cmap='viridis')
     plt.colorbar()
-    for y in range(0,36,12):
-        plt.axhline(y + 1.5, color='c')
+    if show_octaves:
+        for y in range(0,36,12):
+            plt.axhline(y + 1.5, color='c')
     for x in range(0,4*(constants.WHOLE//constants.RESOLUTION_SCALAR),(constants.QUARTER//constants.RESOLUTION_SCALAR)):
         plt.axvline(x-0.5, color='k')
     for x in range(0,4*(constants.WHOLE//constants.RESOLUTION_SCALAR),(constants.WHOLE//constants.RESOLUTION_SCALAR)):
         plt.axvline(x-0.5, color='c')
     plt.show()
 
+def plot_scalar(mat, name=""):
+    f = plt.figure()
+    f.canvas.set_window_title(name)
+    plt.bar(range(mat.shape[0]),mat,1)
+    for x in range(0,4*(constants.WHOLE//constants.RESOLUTION_SCALAR),(constants.QUARTER//constants.RESOLUTION_SCALAR)):
+        plt.axvline(x, color='k')
+    for x in range(0,4*(constants.WHOLE//constants.RESOLUTION_SCALAR),(constants.WHOLE//constants.RESOLUTION_SCALAR)):
+        plt.axvline(x, color='c')
+    plt.show()
+
+
 def plot_all(folder, idx=0):
     probs = np.load(os.path.join(folder,'generated_probs.npy'))
     chosen_raw = np.load(os.path.join(folder,'generated_chosen.npy'))
     chosen = np.eye(probs.shape[-1])[chosen_raw]
-    plot_generated(probs[idx], 'Probabilities')
-    plot_generated(chosen[idx], 'Chosen')
+    plot_note_dist(probs[idx], 'Probabilities')
+    plot_note_dist(chosen[idx], 'Chosen')
     try:
         for i in itertools.count():
             probs_info = np.load(os.path.join(folder,'generated_info_{}.npy'.format(i)))
-            plot_generated(probs_info[idx], 'Info {}'.format(i))
+            if len(probs_info.shape) == 3:
+                show_octaves = probs_info.shape[2] < 40
+                plot_note_dist(probs_info[idx], 'Info {}'.format(i), show_octaves)
+            else:
+                plot_scalar(probs_info[idx], 'Info {}'.format(i))
     except FileNotFoundError:
         pass
 
