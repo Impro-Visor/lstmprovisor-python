@@ -31,6 +31,7 @@ class VariationalQueueManager( QueueManager ):
         return self._feature_size
 
     def helper_sample(self, input_activations):
+        """Helper method to sample from the input_activations. Also returns an (empty) info dict for child class use"""
         pre_strengths = input_activations[:,:,0]
         strengths = T.nnet.sigmoid(pre_strengths)
         strengths = T.set_subtensor(strengths[:,-1],1)
@@ -41,15 +42,15 @@ class VariationalQueueManager( QueueManager ):
 
         vects = means + (stdevs * wiggle)
 
-        return strengths, vects, means, stdevs
+        return strengths, vects, means, stdevs, {}
 
     def get_strengths_and_vects(self, input_activations):
-        strengths, vects, means, stdevs = self.helper_sample(input_activations)
+        strengths, vects, means, stdevs, _ = self.helper_sample(input_activations)
         return strengths, vects
 
     def process(self, input_activations, extra_info=False):
 
-        strengths, vects, means, stdevs = self.helper_sample(input_activations)
+        strengths, vects, means, stdevs, sample_info = self.helper_sample(input_activations)
 
         sparsity_losses = self._loss_fun(strengths)
         full_sparsity_loss = T.sum(sparsity_losses)
@@ -60,7 +61,9 @@ class VariationalQueueManager( QueueManager ):
 
         full_loss = full_sparsity_loss + variational_loss
         
+        info = {"sparsity_loss": full_sparsity_loss, "variational_loss":variational_loss}
+        info.update(sample_info)
         if extra_info:
-            return full_loss, strengths, vects, {"sparsity_loss": full_sparsity_loss, "variational_loss":variational_loss}
+            return full_loss, strengths, vects, info
         else:
             return full_loss, strengths, vects

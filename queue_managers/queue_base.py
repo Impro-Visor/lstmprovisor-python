@@ -79,6 +79,24 @@ class QueueManager( object ):
         else:
             return sparsity_loss, raw_feature_strengths, raw_feature_vects
 
+    def surrogate_loss(self, reconstruction_cost, extra_info):
+        """
+        Get a "surrogate loss" to estimate gradients of any stochastic choices that factor into the reconstruction
+        cost
+
+        Parameters:
+            reconstruction_cost: The reconstruction cost for this batch
+            extra_info: A dictionary, of the form returned by process
+
+        Returns:
+            Either:
+             - None, which means no loss will be added
+             - (surrogate_loss, updates): where surrogate_loss is a value which will be added to the final cost
+                    and differentiated to get the gradient estimator, and updates is a list of updates in 
+                    [(variable, value), ...] form.
+        """
+        return None
+
     @staticmethod
     def queue_transform(feature_strengths, feature_vects, return_strengths=False):
         """

@@ -133,6 +133,8 @@ class CompressiveAutoencoderModel( object ):
             norm_out_probs = reduced_out_probs/normsum
             reconstruction_loss, reconstruction_info = Encoding.compute_loss(norm_out_probs, correct_notes, extra_info=True)
 
+            queue_surrogate_loss_parts = self.qman.surrogate_loss(reconstruction_loss, queue_info)
+
             if self.loss_mode is "add":
                 full_loss = queue_loss + reconstruction_loss
             elif self.loss_mode is "priority":
@@ -144,19 +146,27 @@ class CompressiveAutoencoderModel( object ):
             full_info.update(reconstruction_info)
             full_info["queue_loss"] = queue_loss
             full_info["reconstruction_loss"] = reconstruction_loss
-            return full_loss, full_info
 
-        train_loss, train_info = _build(False)
-        updates = Adam(train_loss, self.params)
+            updates = []
+            if queue_surrogate_loss_parts is not None:
+                surrogate_loss, addtl_updates = queue_surrogate_loss_parts
+                full_loss = full_loss + surrogate_loss
+                updates.extend(addtl_updates)
+                full_info["surrogate_loss"] = surrogate_loss
 
-        eval_loss, eval_info = _build(True)
+            return full_loss, full_info, updates
+
+        train_loss, train_info, train_updates = _build(False)
+        adam_updates = Adam(train_loss, self.params)
+
+        eval_loss, eval_info, _ = _build(True)
 
         self.loss_info_keys = list(train_info.keys())
 
         self.update_fun = theano.function(
             inputs=[chord_types, chord_roots, correct_notes] + relative_posns + encoded_melodies,
             outputs=[train_loss]+list(train_info.values()),
-            updates=updates,
+            updates=train_updates+adam_updates,
             allow_input_downcast=True,
             mode=(NanGuardMode(nan_is_error=True, inf_is_error=True, big_is_error=True) if self.nanguard else None))
 
