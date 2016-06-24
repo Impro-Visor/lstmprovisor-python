@@ -40,20 +40,22 @@ def get_batch(leadsheets, with_sample=False):
 
     res = list(zip(*sliced))
 
+    sample_sources = ["{}: starting at {} = bar {}".format(fn, start, start/(constants.WHOLE//constants.RESOLUTION_SCALAR)) for fn,start in zip(sample_fns, starts)]
+
     if with_sample:
-        return res, sample_fns
+        return res, sample_sources
     else:
         return res
 
 def generate(model, leadsheets, filename, with_vis=False, batch=None):
     if batch is None:
         batch = get_batch(leadsheets, True)
-    (chords, melody), sample_fns = batch
+    (chords, melody), sample_sources = batch
     generated_out, chosen, vis_probs, vis_info = model.produce(chords, melody)
 
     if with_vis:
         with open("{}_sources.txt".format(filename), "w") as f:
-            f.write('\n'.join(sample_fns))
+            f.write('\n'.join(sample_sources))
         np.save('{}_chosen.npy'.format(filename), chosen)
         np.save('{}_probs.npy'.format(filename), vis_probs)
         for i,v in enumerate(vis_info):

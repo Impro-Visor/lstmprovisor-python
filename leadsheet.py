@@ -117,7 +117,7 @@ def parse_note(nstr):
 def parse_leadsheet(fn,verbose=False):
     with open(fn,'r') as f:
         contents = "\n".join(f.readlines())
-    parsed = sexpdata.loads("({})".format(contents))
+    parsed = sexpdata.loads("({})".format(contents.replace("'","")))
 
     parts = [('default','',[])]
     for p in parsed:
