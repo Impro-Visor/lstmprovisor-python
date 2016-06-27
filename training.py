@@ -97,7 +97,7 @@ def train(model,leadsheets,num_updates,outputdir,start=0,validation_leadsheets=N
             f.write("{}, {}, ".format(i,loss) + ", ".join(str(v) for k,v in sorted(infos.items())) + "\n")
         if i % 10 == 0:
             print("update {}: {}, info {}".format(i,loss,pformat(infos)))
-        if i % 500 == 0 or (i % 100 == 0 and i < 1000) or i==1:
+        if i % 5000 == 0 or i==1:
             generate(model, leadsheets, os.path.join(outputdir,'sample{}'.format(i)))
             pickle.dump(model.params,open(os.path.join(outputdir, 'params{}.p'.format(i)), 'wb'))
             if validation_leadsheets is not None:
