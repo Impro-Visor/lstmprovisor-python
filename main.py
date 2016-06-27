@@ -100,7 +100,7 @@ builders['compae'] = ModelBuilder('compae', build_compae, config_compae, 'A comp
 
 ###################################################################################################################
 
-def main(modeltype, dataset="dataset", outputdir="output", validation=None, resume=None, check_nan=False, generate=False, generate_over=None, **model_kwargs):
+def main(modeltype, dataset="dataset", outputdir="output", validation=None, resume=None, resume_auto=False, check_nan=False, generate=False, generate_over=None, **model_kwargs):
     generate = generate or (generate_over is not None)
     should_setup = not generate
     unroll_batch_num = None if generate else training.BATCH_SIZE
@@ -108,6 +108,16 @@ def main(modeltype, dataset="dataset", outputdir="output", validation=None, resu
     m = builders[modeltype].build(should_setup, check_nan, unroll_batch_num, **model_kwargs)
 
     leadsheets = training.find_leadsheets(dataset)
+
+    if resume_auto:
+        paramfile = os.path.join(outputdir,'final_params.p')
+        with open(os.path.join(outputdir,'data.csv')) as f:
+            for line in f:
+                pass
+            lastline = line
+            start_idx = lastline.split(',')[0]
+        print("Automatically resuming from {} after iteration {}.".format(paramfile, start_idx))
+        resume = (start_idx, paramfile)
 
     if resume is not None:
         start_idx, paramfile = resume
@@ -153,10 +163,12 @@ parser.add_argument('--dataset', default='dataset', help='Path to dataset folder
 parser.add_argument('--validation', help='Path to validation dataset folder (with .ls files)')
 parser.add_argument('--outputdir', default='output', help='Path to output folder')
 parser.add_argument('--check_nan', action='store_true', help='Check for nans during execution')
-parser.add_argument('--resume', nargs=2, metavar=('TIMESTEP', 'PARAMFILE'), default=None, help='Where to restore from: timestep, and file to load')
-group = parser.add_mutually_exclusive_group()
-group.add_argument('--generate', action='store_true', help="Don't train, just generate. Should be used with restore.")
-group.add_argument('--generate_over', nargs=2, metavar=('SOURCE', 'DIV_WIDTH'), default=None, help="Don't train, just generate, and generate over SOURCE chord changes divided into chunks of length DIV_WIDTH (or one contiguous chunk if DIV_WIDTH is 'full'). Can use 'bar' as a unit. Should be used with restore.")
+resume_group = parser.add_mutually_exclusive_group()
+resume_group.add_argument('--resume', nargs=2, metavar=('TIMESTEP', 'PARAMFILE'), default=None, help='Where to restore from: timestep, and file to load')
+resume_group.add_argument('--resume_auto', action='store_true', help='Automatically restore from a previous run using output directory')
+gen_group = parser.add_mutually_exclusive_group()
+gen_group.add_argument('--generate', action='store_true', help="Don't train, just generate. Should be used with restore.")
+gen_group.add_argument('--generate_over', nargs=2, metavar=('SOURCE', 'DIV_WIDTH'), default=None, help="Don't train, just generate, and generate over SOURCE chord changes divided into chunks of length DIV_WIDTH (or one contiguous chunk if DIV_WIDTH is 'full'). Can use 'bar' as a unit. Should be used with restore.")
 
 subparsers = parser.add_subparsers(title='Model Types', dest='modeltype', help='Type of model to use. (Note that each model type has additional parameters.)')
 for k,b in builders.items():
