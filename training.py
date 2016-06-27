@@ -93,6 +93,8 @@ def train(model,leadsheets,num_updates,outputdir,start=0,validation_leadsheets=N
         loss, infos = model.train(*get_batch(leadsheets))
         with open(os.path.join(outputdir,'data.csv'),'a') as f:
             if i == 1:
+                f.seek(0)
+                f.truncate()
                 f.write("iter, loss, " + ", ".join(k for k,v in sorted(infos.items())) + "\n")
             f.write("{}, {}, ".format(i,loss) + ", ".join(str(v) for k,v in sorted(infos.items())) + "\n")
         if i % 10 == 0:
