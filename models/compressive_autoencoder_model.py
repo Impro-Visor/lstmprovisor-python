@@ -62,8 +62,12 @@ class CompressiveAutoencoderModel( object ):
 
         self.nanguard = nanguard
 
-        assert loss_mode in ["priority","add","cutoff"], "Invalid loss mode {}".format(loss_mode)
-        self.loss_mode = loss_mode
+        if isinstance(loss_mode, tuple):
+            self.loss_mode = loss_mode[0]
+            self.loss_mode_params = loss_mode[1:]
+        else:
+            self.loss_mode = loss_mode
+        assert self.loss_mode in ["priority","add","cutoff"], "Invalid loss mode {}".format(loss_mode)
         if setup:
             print("Setting up train")
             self.setup_train()
@@ -135,12 +139,14 @@ class CompressiveAutoencoderModel( object ):
 
             queue_surrogate_loss_parts = self.qman.surrogate_loss(reconstruction_loss, queue_info)
 
+            float_n_batch = T.cast(n_batch,'float32')
             if self.loss_mode is "add":
                 full_loss = queue_loss + reconstruction_loss
             elif self.loss_mode is "priority":
-                full_loss = reconstruction_loss + queue_loss/(1+theano.gradient.disconnected_grad(reconstruction_loss/T.cast(n_batch,'float32')))
+                full_loss = reconstruction_loss + queue_loss/(1+theano.gradient.disconnected_grad(reconstruction_loss/float_n_batch))
             elif self.loss_mode is "cutoff":
-                full_loss = T.switch(reconstruction_loss<1, reconstruction_loss+queue_loss, reconstruction_loss)
+                cutoff_val = np.array(self.loss_mode_params[0], np.float32)
+                full_loss = T.switch(reconstruction_loss<cutoff_val*float_n_batch, reconstruction_loss+queue_loss, reconstruction_loss)
 
             full_info = queue_info.copy()
             full_info.update(reconstruction_info)
