@@ -6,7 +6,7 @@ import collections
 
 from models import SimpleModel, ProductOfExpertsModel, CompressiveAutoencoderModel
 from note_encodings import AbsoluteSequentialEncoding, RelativeJumpEncoding, ChordRelativeEncoding, CircleOfThirdsEncoding
-from queue_managers import StandardQueueManager, VariationalQueueManager, SamplingVariationalQueueManager
+from queue_managers import StandardQueueManager, VariationalQueueManager, SamplingVariationalQueueManager, QueuelessVariationalQueueManager
 import input_parts
 import leadsheet
 import training
@@ -57,7 +57,7 @@ builders['poex'] = ModelBuilder('poex', build_poex, config_poex, 'A product-of-e
 
 #######################
 
-def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_key, no_per_note, hide_output, queue_loss_scale):
+def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_key, no_per_note, hide_output, sparsity_loss_scale, variational_loss_scale):
     bounds = constants.NoteBounds(48, 84) if encode_key == "cot" else constants.BOUNDS
     shift_modes = None
     if encode_key == "abs":
@@ -79,23 +79,26 @@ def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_ke
         shift_modes=["drop","roll"]
         inputs = None
 
-    lossfun = lambda x: np.array(queue_loss_scale, np.float32) * T.log(1+99*x)/T.log(100)
+    lossfun = lambda x: np.array(sparsity_loss_scale, np.float32) * T.log(1+99*x)/T.log(100)
     if queue_key == "std":
         qman = StandardQueueManager(100, loss_fun=lossfun)
     elif queue_key == "var":
-        qman = VariationalQueueManager(100, loss_fun=lossfun)
+        qman = VariationalQueueManager(100, loss_fun=lossfun, variational_loss_scale=variational_loss_scale)
     elif queue_key == "sample_var":
-        qman = SamplingVariationalQueueManager(100, loss_fun=lossfun)
+        qman = SamplingVariationalQueueManager(100, loss_fun=lossfun, variational_loss_scale=variational_loss_scale)
+    elif queue_key == "queueless_var":
+        qman = QueuelessVariationalQueueManager(300, variational_loss_scale=variational_loss_scale)
 
     return CompressiveAutoencoderModel(qman, enc, sizes, sizes, shift_modes=shift_modes, bounds=bounds, hide_output=hide_output, inputs=inputs,
                 dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)
 
 def config_compae(parser):
     parser.add_argument('encode_key', choices=["abs","cot","rel","poex"], help='Type of encoding to use')
-    parser.add_argument('queue_key', choices=["std","var","sample_var"], help='Type of queue manager to use')
+    parser.add_argument('queue_key', choices=["std","var","sample_var","queueless_var"], help='Type of queue manager to use')
     parser.add_argument('--no_per_note', action="store_true", help='Remove any note memory cells')
     parser.add_argument('--hide_output', action="store_true", help='Hide previous outputs from the decoder')
-    parser.add_argument('--queue_loss_scale', type=float, default="1", help='How much to scale the queue loss by')
+    parser.add_argument('--sparsity_loss_scale', type=float, default="1", help='How much to scale the sparsity loss by')
+    parser.add_argument('--variational_loss_scale', type=float, default="1", help='How much to scale the variational loss by')
 
 builders['compae'] = ModelBuilder('compae', build_compae, config_compae, 'A compressive autoencoder model.')
 

@@ -11,7 +11,7 @@ class SamplingVariationalQueueManager( VariationalQueueManager ):
     A variational-autoencoder-based queue manager, using a configurable loss, with sampled pushes and pops
     """
 
-    def __init__(self, feature_size, loss_fun=(lambda x:x), baseline_scale=0.9):
+    def __init__(self, feature_size, loss_fun=(lambda x:x), variational_loss_scale=1, baseline_scale=0.9):
         """
         Initialize the manager.
 
@@ -21,7 +21,7 @@ class SamplingVariationalQueueManager( VariationalQueueManager ):
                 operation.
             baseline_scale: How much to adjust the baseline
         """
-        super().__init__(feature_size, loss_fun)
+        super().__init__(feature_size, loss_fun, variational_loss_scale)
         self._baseline_scale = baseline_scale
 
     def helper_sample(self, input_activations):

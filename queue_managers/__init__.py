@@ -2,3 +2,4 @@ from .queue_base import QueueManager
 from .standard_manager import StandardQueueManager
 from .variational_manager import VariationalQueueManager
 from .sampling_variational_manager import SamplingVariationalQueueManager
+from .queueless_variational_manager import QueuelessVariationalQueueManager
