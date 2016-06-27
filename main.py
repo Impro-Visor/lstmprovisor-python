@@ -79,7 +79,7 @@ def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_ke
         shift_modes=["drop","roll"]
         inputs = None
 
-    lossfun = lambda x: queue_loss_scale * T.log(1+99*x)/T.log(100)
+    lossfun = lambda x: np.array(queue_loss_scale, np.float32) * T.log(1+99*x)/T.log(100)
     if queue_key == "std":
         qman = StandardQueueManager(100, loss_fun=lossfun)
     elif queue_key == "var":
