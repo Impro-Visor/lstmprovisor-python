@@ -16,7 +16,7 @@ def main(file, keys=None, output=None):
             key_names = f.readlines()
         assert len(key_names) == len(params), "Wrong number of keys for params! {} keys, {} params".format(len(key_names), len(params))
     for name,val in zip(key_names, param_vals):
-        np.savetxt("{}_{}.csv".format(file,name), val, delimiter=",")
+        np.savetxt("{}_{}.csv".format(output,name.strip()), val, delimiter=",")
 
 parser = argparse.ArgumentParser(description='Convert a parameters file into CSV files')
 parser.add_argument('file', help='File to process')
