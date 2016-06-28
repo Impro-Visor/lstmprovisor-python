@@ -291,7 +291,7 @@ class CompressiveAutoencoderModel( object ):
         self.decode_visualize_fun = theano.function(
             inputs=[chord_roots, chord_types, feat_strengths, feat_vects],
             updates=updates,
-            outputs=[all_chosen, all_probs] + indiv_probs,
+            outputs=[all_chosen, all_probs] + indiv_probs + [features],
             allow_input_downcast=True,
             mode=(NanGuardMode(nan_is_error=True, inf_is_error=True, big_is_error=True) if self.nanguard else None))
 
