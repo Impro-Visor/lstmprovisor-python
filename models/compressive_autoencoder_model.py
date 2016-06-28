@@ -143,7 +143,7 @@ class CompressiveAutoencoderModel( object ):
             if self.loss_mode is "add":
                 full_loss = queue_loss + reconstruction_loss
             elif self.loss_mode is "priority":
-                full_loss = reconstruction_loss + queue_loss/(1+theano.gradient.disconnected_grad(reconstruction_loss/float_n_batch))
+                full_loss = reconstruction_loss + queue_loss/(1+(reconstruction_loss/float_n_batch))
             elif self.loss_mode is "cutoff":
                 cutoff_val = np.array(self.loss_mode_params[0], np.float32)
                 full_loss = T.switch(reconstruction_loss<cutoff_val*float_n_batch, reconstruction_loss+queue_loss, reconstruction_loss)
