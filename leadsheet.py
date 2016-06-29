@@ -172,7 +172,7 @@ def parse_leadsheet(fn,verbose=False):
     clen = len(chords)
     mlen = sum(dur for n,dur in melody)
     # Might have multiple melodies over the same chords
-    assert mlen % clen == 0, "Notes and chords don't match: {}, {}".format(clen,mlen)
+    assert mlen % clen == 0, "Notes and chords don't match in {}: {}, {}".format(fn, clen,mlen)
 
     return chords, melody
 
