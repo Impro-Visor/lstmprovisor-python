@@ -29,9 +29,15 @@ def get_batch(leadsheets, with_sample=False):
     """
     Get a batch
 
+    leadsheets should be a list of dataset lists of (chord, melody) tuples, or just a dataset list of tuples
+
     returns: chords, melodies
     """
-    sample_fns = [random.choice(leadsheets) for _ in range(BATCH_SIZE)]
+    if not isinstance(leadsheets[0], list):
+        leadsheets = [leadsheets]
+
+    sample_datasets = [random.randrange(len(leadsheets)) for _ in range(BATCH_SIZE)]
+    sample_fns = [random.choice(leadsheets[i]) for i in sample_datasets]
     loaded_samples = [leadsheet.parse_leadsheet(lsfn) for lsfn in sample_fns]
     sample_lengths = [leadsheet.get_leadsheet_length(c,m) for c,m in loaded_samples]
 

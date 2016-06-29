@@ -110,14 +110,14 @@ builders['compae'] = ModelBuilder('compae', build_compae, config_compae, 'A comp
 
 ###################################################################################################################
 
-def main(modeltype, dataset="dataset", outputdir="output", validation=None, resume=None, resume_auto=False, check_nan=False, generate=False, generate_over=None, **model_kwargs):
+def main(modeltype, dataset=["dataset"], outputdir="output", validation=None, resume=None, resume_auto=False, check_nan=False, generate=False, generate_over=None, **model_kwargs):
     generate = generate or (generate_over is not None)
     should_setup = not generate
     unroll_batch_num = None if generate else training.BATCH_SIZE
 
     m = builders[modeltype].build(should_setup, check_nan, unroll_batch_num, **model_kwargs)
 
-    leadsheets = training.find_leadsheets(dataset)
+    leadsheets = [training.find_leadsheets(d) for d in dataset]
 
     if resume_auto:
         paramfile = os.path.join(outputdir,'final_params.p')
@@ -155,10 +155,10 @@ def main(modeltype, dataset="dataset", outputdir="output", validation=None, resu
             ch,mel = leadsheet.parse_leadsheet(source)
             lslen = leadsheet.get_leadsheet_length(ch,mel)
             if divwidth == 0:
-                batch = ([ch],[mel]), source
+                batch = ([ch],[mel]), [source]
             else:
                 slices = [leadsheet.slice_leadsheet(ch,mel,s,s+divwidth) for s in range(0,lslen,divwidth)]
-                batch = list(zip(*slices)), source
+                batch = list(zip(*slices)), [source]
             training.generate(m, leadsheets, os.path.join(outputdir, "generated"), with_vis=True, batch=batch)
         else:
             training.generate(m, leadsheets, os.path.join(outputdir, "generated"), with_vis=True)
@@ -169,7 +169,7 @@ def main(modeltype, dataset="dataset", outputdir="output", validation=None, resu
         pickle.dump( m.params, open( os.path.join(outputdir, "final_params.p"), "wb" ) )
 
 parser = argparse.ArgumentParser(description='Train a neural network model.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('--dataset', default='dataset', help='Path to dataset folder (with .ls files)')
+parser.add_argument('--dataset', nargs="+", default=['dataset'], help='Path(s) to dataset folder (with .ls files). If multiple are passed, samples randomly from each')
 parser.add_argument('--validation', help='Path to validation dataset folder (with .ls files)')
 parser.add_argument('--outputdir', default='output', help='Path to output folder')
 parser.add_argument('--check_nan', action='store_true', help='Check for nans during execution')
