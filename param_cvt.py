@@ -6,7 +6,7 @@ import numpy as np
 
 def main(file, keys=None, output=None):
     params = pickle.load(open(file, 'rb'))
-    param_vals = [x.get_value() for x in params]
+    param_vals = [x if isinstance(x,np.ndarray) else x.get_value() for x in params]
     if output is None:
         output = file + "-raw"
     if keys is None:
