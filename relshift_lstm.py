@@ -151,9 +151,6 @@ class RelativeShiftLSTMStack( object ):
         full_input = T.concatenate([ part.generate(**squashed_kwargs) for part in self.input_parts ], 1)
         adjusted_input = full_input.reshape([n_batch, n_time, self.input_size]).dimshuffle((1,0,2))
 
-        np.set_printoptions(threshold=1e30, linewidth=200)
-        adjusted_input = theano.printing.Print("adjusted_input")(adjusted_input)
-
         if "relative_position" in kwargs:
             relative_position = kwargs["relative_position"]
             diff_shifts = T.extra_ops.diff(relative_position, axis=1)
