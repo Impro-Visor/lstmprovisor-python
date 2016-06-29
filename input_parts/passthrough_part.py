@@ -18,6 +18,9 @@ class PassthroughInputPart( InputPart ):
         self.keyword = keyword
         self.PART_WIDTH = width
 
+    def __repr__(self):
+        return '<PassthroughInputPart with keyword "{}">'.format(self.keyword)
+
     def generate(self, **kwargs):
         """
         Generate a beat input for a given timestep.

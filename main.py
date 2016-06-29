@@ -148,6 +148,8 @@ def main(modeltype, dataset=["dataset"], outputdir="output", validation=None, re
             source, divwidth = generate_over
             if divwidth == 'full':
                 divwidth = 0
+            elif divwidth == 'debug_firststep':
+                divwidth = -1
             elif len(divwidth)>3 and divwidth[-3:] == 'bar':
                 divwidth = int(divwidth[:-3])*(constants.WHOLE//constants.RESOLUTION_SCALAR)
             else:
@@ -156,6 +158,9 @@ def main(modeltype, dataset=["dataset"], outputdir="output", validation=None, re
             lslen = leadsheet.get_leadsheet_length(ch,mel)
             if divwidth == 0:
                 batch = ([ch],[mel]), [source]
+            elif divwidth == -1:
+                slices = [leadsheet.slice_leadsheet(ch,mel,0,1)]
+                batch = list(zip(*slices)), [source]
             else:
                 slices = [leadsheet.slice_leadsheet(ch,mel,s,s+divwidth) for s in range(0,lslen,divwidth)]
                 batch = list(zip(*slices)), [source]
