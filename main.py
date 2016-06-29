@@ -6,7 +6,7 @@ import collections
 
 from models import SimpleModel, ProductOfExpertsModel, CompressiveAutoencoderModel
 from note_encodings import AbsoluteSequentialEncoding, RelativeJumpEncoding, ChordRelativeEncoding, CircleOfThirdsEncoding
-from queue_managers import StandardQueueManager, VariationalQueueManager, SamplingVariationalQueueManager, QueuelessVariationalQueueManager
+from queue_managers import StandardQueueManager, VariationalQueueManager, SamplingVariationalQueueManager, QueuelessVariationalQueueManager, NearnessStandardQueueManager
 import input_parts
 import leadsheet
 import training
@@ -88,6 +88,8 @@ def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_ke
         qman = SamplingVariationalQueueManager(100, loss_fun=lossfun, variational_loss_scale=variational_loss_scale)
     elif queue_key == "queueless_var":
         qman = QueuelessVariationalQueueManager(300, variational_loss_scale=variational_loss_scale)
+    elif queue_key == "nearness_std":
+        qman = NearnessStandardQueueManager(100, sparsity_loss_scale*10, sparsity_loss_scale, 0.97)
 
     loss_mode = "add" if loss_mode_add else ("cutoff", loss_mode_cutoff) if loss_mode_cutoff is not None else "priority"
 
@@ -96,7 +98,7 @@ def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_ke
 
 def config_compae(parser):
     parser.add_argument('encode_key', choices=["abs","cot","rel","poex"], help='Type of encoding to use')
-    parser.add_argument('queue_key', choices=["std","var","sample_var","queueless_var"], help='Type of queue manager to use')
+    parser.add_argument('queue_key', choices=["std","var","sample_var","queueless_var","nearness_std"], help='Type of queue manager to use')
     parser.add_argument('--no_per_note', action="store_true", help='Remove any note memory cells')
     parser.add_argument('--hide_output', action="store_true", help='Hide previous outputs from the decoder')
     parser.add_argument('--sparsity_loss_scale', type=float, default="1", help='How much to scale the sparsity loss by')
