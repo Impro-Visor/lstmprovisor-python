@@ -20,7 +20,7 @@ import random
 
 import pickle
 
-CHARKEY = ' !"\'(),-.01245679:?ABCDEFGHIJKLMNOPQRSTUVWYZabcdefghijklmnopqrstuvwxyz'
+CHARKEY = " !\"'(),-.01245679:?ABCDEFGHIJKLMNOPQRSTUVWYZabcdefghijklmnopqrstuvwxyz"
 
 def name_model():
 

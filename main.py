@@ -103,7 +103,7 @@ def config_compae(parser):
     parser.add_argument('--hide_output', action="store_true", help='Hide previous outputs from the decoder')
     parser.add_argument('--sparsity_loss_scale', type=float, default="1", help='How much to scale the sparsity loss by')
     parser.add_argument('--variational_loss_scale', type=float, default="1", help='How much to scale the variational loss by')
-    lossgroup = parser.add_mutually_exclusive_group(required=True)
+    lossgroup = parser.add_mutually_exclusive_group()
     lossgroup.add_argument('--priority_loss', nargs='?', const=50, dest='loss_mode_priority', type=float, help='Use priority loss scaling mode (with the specified curviness)')
     lossgroup.add_argument('--add_loss', dest='loss_mode_add', action='store_true', help='Use adding loss scaling mode')
     lossgroup.add_argument('--cutoff_loss', dest='loss_mode_cutoff', type=float, metavar="CUTOFF", help='Use cutoff loss scaling mode with the specified per-batch cutoff')

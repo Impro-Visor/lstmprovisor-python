@@ -144,7 +144,19 @@ class CompressiveAutoencoderModel( object ):
                 full_loss = queue_loss + reconstruction_loss
             elif self.loss_mode is "priority":
                 curviness = np.array(self.loss_mode_params[0], np.float32)*float_n_batch
-                full_loss = T.log(T.exp(reconstruction_loss/curviness) + T.exp(queue_loss/curviness) - 1)*curviness
+                # ln( e^x + e^y - 1 )
+                # ln( C(e^x + e^y - 1) ) - ln(C)
+                # ln( e^c(e^x + e^y - 1) ) - c
+                # ln( e^(x+c) + e^(y+c) - e^c ) - c
+                # ln( e^(x-c) + e^(y-c) - e^(-c) ) + c
+                # Now let c = maximum(x,y), d = minimum(x,y). WOLOG replace x=c, y=d
+                # ln( e^(c-c) + e^(d-c) - e^(-c) ) + c
+                # ln( 1 + e^(d-c) - e^(-c) ) + c
+                x = reconstruction_loss/curviness
+                y = queue_loss/curviness
+                c = T.maximum(x,y)
+                d = T.minimum(x,y) - c
+                full_loss = (T.log( 1 + T.exp(d-c) - T.exp(-c)) + c)*curviness
             elif self.loss_mode is "cutoff":
                 cutoff_val = np.array(self.loss_mode_params[0], np.float32)
                 full_loss = T.switch(reconstruction_loss<cutoff_val*float_n_batch, reconstruction_loss+queue_loss, reconstruction_loss)
