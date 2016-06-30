@@ -91,7 +91,7 @@ def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_ke
     elif queue_key == "nearness_std":
         qman = NearnessStandardQueueManager(100, sparsity_loss_scale*10, sparsity_loss_scale, 0.97)
 
-    loss_mode = "add" if loss_mode_add else ("cutoff", loss_mode_cutoff) if loss_mode_cutoff is not None else "priority"
+    loss_mode = "add" if loss_mode_add else ("cutoff", loss_mode_cutoff) if loss_mode_cutoff is not None else ("priority", loss_mode_priority if loss_mode_priority is not None else 50)
 
     return CompressiveAutoencoderModel(qman, enc, sizes, sizes, shift_modes=shift_modes, bounds=bounds, hide_output=hide_output, inputs=inputs,
                 dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num, loss_mode=loss_mode)
@@ -103,8 +103,8 @@ def config_compae(parser):
     parser.add_argument('--hide_output', action="store_true", help='Hide previous outputs from the decoder')
     parser.add_argument('--sparsity_loss_scale', type=float, default="1", help='How much to scale the sparsity loss by')
     parser.add_argument('--variational_loss_scale', type=float, default="1", help='How much to scale the variational loss by')
-    lossgroup = parser.add_mutually_exclusive_group()
-    lossgroup.add_argument('--priority_loss', dest='loss_mode_priority', action='store_true', help='Use priority loss scaling mode')
+    lossgroup = parser.add_mutually_exclusive_group(required=True)
+    lossgroup.add_argument('--priority_loss', nargs='?', const=50, dest='loss_mode_priority', type=float, help='Use priority loss scaling mode (with the specified curviness)')
     lossgroup.add_argument('--add_loss', dest='loss_mode_add', action='store_true', help='Use adding loss scaling mode')
     lossgroup.add_argument('--cutoff_loss', dest='loss_mode_cutoff', type=float, metavar="CUTOFF", help='Use cutoff loss scaling mode with the specified per-batch cutoff')
 

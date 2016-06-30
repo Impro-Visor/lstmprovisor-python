@@ -20,7 +20,7 @@ from theano.compile.nanguardmode import NanGuardMode
 
 
 class CompressiveAutoencoderModel( object ):
-    def __init__(self, queue_manager, encodings, enc_layer_sizes, dec_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False, loss_mode="priority", hide_output=True, unroll_batch_num=None, bounds=constants.BOUNDS):
+    def __init__(self, queue_manager, encodings, enc_layer_sizes, dec_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False, loss_mode="add", hide_output=True, unroll_batch_num=None, bounds=constants.BOUNDS):
 
         self.bounds = bounds
 
@@ -143,7 +143,8 @@ class CompressiveAutoencoderModel( object ):
             if self.loss_mode is "add":
                 full_loss = queue_loss + reconstruction_loss
             elif self.loss_mode is "priority":
-                full_loss = reconstruction_loss + queue_loss/(1+(reconstruction_loss/float_n_batch))
+                curviness = np.array(self.loss_mode_params[0], np.float32)*float_n_batch
+                full_loss = T.log(T.exp(reconstruction_loss/curviness) + T.exp(queue_loss/curviness) - 1)*curviness
             elif self.loss_mode is "cutoff":
                 cutoff_val = np.array(self.loss_mode_params[0], np.float32)
                 full_loss = T.switch(reconstruction_loss<cutoff_val*float_n_batch, reconstruction_loss+queue_loss, reconstruction_loss)
