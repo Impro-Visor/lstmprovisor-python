@@ -155,7 +155,7 @@ class CompressiveAutoencoderModel( object ):
                 x = reconstruction_loss/curviness
                 y = queue_loss/curviness
                 c = T.maximum(x,y)
-                d = T.minimum(x,y) - c
+                d = T.minimum(x,y)
                 full_loss = (T.log( 1 + T.exp(d-c) - T.exp(-c)) + c)*curviness
             elif self.loss_mode is "cutoff":
                 cutoff_val = np.array(self.loss_mode_params[0], np.float32)
