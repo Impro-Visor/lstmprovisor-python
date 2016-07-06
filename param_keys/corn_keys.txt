@@ -1,0 +1,11 @@
+lstm_input_w
+lstm_input_b
+lstm_forget_w
+lstm_forget_b
+lstm_activate_w
+lstm_activate_b
+lstm_out_w
+lstm_out_b
+lstm_initialstate
+full_w
+full_b
