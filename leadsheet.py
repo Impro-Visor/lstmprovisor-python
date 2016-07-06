@@ -52,9 +52,8 @@ def parse_chord(cstr,verbose=False):
     """
     if cstr == "NC":
         return 0, constants.CHORD_TYPES["NC"]
-    chord_match = re.match(r"([A-G](?:#|b)?)(.*)", cstr)
-    root_note = chord_match.group(1)
-    ctype = chord_match.group(2)
+    chord_match = re.match(r"([A-G](?:#|b)?)([^/]*)(?:/(.+))?", cstr)
+    root_note, ctype, slash_note = chord_match.groups()
 
     try:
         ctype_vec = constants.CHORD_TYPES[ctype]
@@ -62,9 +61,18 @@ def parse_chord(cstr,verbose=False):
         if(verbose):
             print("WARNING: Could not find chord {}, substituting NC".format(cstr))
         ctype_vec = constants.CHORD_TYPES['NC']
-    root_offset = constants.CHORD_NOTE_OFFSETS[root_note]
 
-    return root_offset, ctype_vec
+    root_offset = constants.CHORD_NOTE_OFFSETS[root_note]
+    if slash_note is None:
+        return root_offset, ctype_vec
+    else:
+        # For a slash chord, we need to add the slashed note to the chord,
+        # and also make it the bass note
+        slash_offset = constants.CHORD_NOTE_OFFSETS[slash_note]
+        shifted_ctype_vec = rotate(ctype_vec, root_offset-slash_offset)
+        shifted_ctype_vec[0] = 1
+        return slash_offset, shifted_ctype_vec
+
 
 def parse_duration(durstr):
     accum_dur = 0
