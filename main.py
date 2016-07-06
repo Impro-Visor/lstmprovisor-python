@@ -112,10 +112,12 @@ builders['compae'] = ModelBuilder('compae', build_compae, config_compae, 'A comp
 
 ###################################################################################################################
 
-def main(modeltype, dataset=["dataset"], outputdir="output", validation=None, resume=None, resume_auto=False, check_nan=False, generate=False, generate_over=None, **model_kwargs):
+def main(modeltype, batch_size, segment_len, segment_step, dataset=["dataset"], outputdir="output", validation=None, resume=None, resume_auto=False, check_nan=False, generate=False, generate_over=None, **model_kwargs):
     generate = generate or (generate_over is not None)
     should_setup = not generate
     unroll_batch_num = None if generate else training.BATCH_SIZE
+
+    training.set_params(batch_size, segment_step, segment_len)
 
     m = builders[modeltype].build(should_setup, check_nan, unroll_batch_num, **model_kwargs)
 
@@ -178,11 +180,20 @@ def main(modeltype, dataset=["dataset"], outputdir="output", validation=None, re
         training.train(m, leadsheets, 50000, outputdir, start_idx, validation_leadsheets=validation)
         pickle.dump( m.params, open( os.path.join(outputdir, "final_params.p"), "wb" ) )
 
+def cvt_time(s):
+    if len(s)>3 and s[-3:] == "bar":
+        return int(s[:-3])*(constants.WHOLE//constants.RESOLUTION_SCALAR)
+    else:
+        return int(s)
+
 parser = argparse.ArgumentParser(description='Train a neural network model.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--dataset', nargs="+", default=['dataset'], help='Path(s) to dataset folder (with .ls files). If multiple are passed, samples randomly from each')
 parser.add_argument('--validation', help='Path to validation dataset folder (with .ls files)')
 parser.add_argument('--outputdir', default='output', help='Path to output folder')
 parser.add_argument('--check_nan', action='store_true', help='Check for nans during execution')
+parser.add_argument('--batch_size', type=int, default=10, help='Size of batch')
+parser.add_argument('--segment_len', type=cvt_time, default="4bar", help='Length of segment to train on')
+parser.add_argument('--segment_step', type=cvt_time, default="1bar", help='Period at which segments may begin')
 resume_group = parser.add_mutually_exclusive_group()
 resume_group.add_argument('--resume', nargs=2, metavar=('TIMESTEP', 'PARAMFILE'), default=None, help='Where to restore from: timestep, and file to load')
 resume_group.add_argument('--resume_auto', action='store_true', help='Automatically restore from a previous run using output directory')

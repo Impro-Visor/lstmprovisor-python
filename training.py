@@ -16,9 +16,13 @@ BATCH_SIZE = 10
 SEGMENT_STEP = constants.WHOLE//constants.RESOLUTION_SCALAR
 SEGMENT_LEN = 4*SEGMENT_STEP
 
-GEN_BATCH_SIZE = BATCH_SIZE
-GEN_SEGMENT_STEP = SEGMENT_STEP
-GEN_SEGMENT_LEN = SEGMENT_LEN
+def set_params(batch_size, segment_step, segment_len):
+    global BATCH_SIZE
+    global SEGMENT_STEP
+    global SEGMENT_LEN
+    BATCH_SIZE = batch_size
+    SEGMENT_STEP = segment_step
+    SEGMENT_LEN = segment_len
 
 VALIDATION_CT = 5
 
