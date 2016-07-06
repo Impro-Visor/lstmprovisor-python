@@ -29,6 +29,19 @@ VALIDATION_CT = 5
 def find_leadsheets(dirpath):
     return [os.path.join(dirpath, fname) for fname in os.listdir(dirpath) if fname[-3:] == '.ls']
 
+def filter_leadsheets(leadsheets):
+    new_leadsheets=[]
+    for lsfn in leadsheets:
+        print("---- {} ----".format(lsfn))
+        c,m = leadsheet.parse_leadsheet(lsfn, verbose=True)
+        length = leadsheet.get_leadsheet_length(c,m)
+        if length < SEGMENT_LEN:
+            print("Leadsheet {} is too short! Skipping...".format(lsfn))
+        else:
+            new_leadsheets.append(lsfn)
+    print("Found {} leadsheets.".format(len(leadsheets)))
+    return new_leadsheets
+
 def get_batch(leadsheets, with_sample=False):
     """
     Get a batch

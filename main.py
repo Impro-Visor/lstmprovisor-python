@@ -37,7 +37,7 @@ def build_simple(should_setup, check_nan, unroll_batch_num, encode_key, no_per_n
 
 def config_simple(parser):
     parser.add_argument('encode_key', choices=["abs","cot","rel"], help='Type of encoding to use')
-    parser.add_argument('--no_per_note', action="store_true", help='Remove any note memory cells')
+    parser.add_argument('--per_note', dest="no_per_note", action="store_false", help='Enable note memory cells')
 
 builders['simple'] = ModelBuilder('simple', build_simple, config_simple, 'A simple single-LSTM-stack sequential model')
 
@@ -51,7 +51,7 @@ def build_poex(should_setup, check_nan, unroll_batch_num, no_per_note):
         dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)
 
 def config_poex(parser):
-    parser.add_argument('--no_per_note', action="store_true", help='Remove any note memory cells')
+    parser.add_argument('--per_note', dest="no_per_note", action="store_false", help='Enable note memory cells')
 
 builders['poex'] = ModelBuilder('poex', build_poex, config_poex, 'A product-of-experts LSTM sequential model, using note and chord relative encodings.')
 
@@ -99,7 +99,7 @@ def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_ke
 def config_compae(parser):
     parser.add_argument('encode_key', choices=["abs","cot","rel","poex"], help='Type of encoding to use')
     parser.add_argument('queue_key', choices=["std","var","sample_var","queueless_var","nearness_std"], help='Type of queue manager to use')
-    parser.add_argument('--no_per_note', action="store_true", help='Remove any note memory cells')
+    parser.add_argument('--per_note', dest="no_per_note", action="store_false", help='Enable note memory cells')
     parser.add_argument('--hide_output', action="store_true", help='Hide previous outputs from the decoder')
     parser.add_argument('--sparsity_loss_scale', type=float, default="1", help='How much to scale the sparsity loss by')
     parser.add_argument('--variational_loss_scale', type=float, default="1", help='How much to scale the variational loss by')
@@ -118,10 +118,9 @@ def main(modeltype, batch_size, segment_len, segment_step, dataset=["dataset"], 
     unroll_batch_num = None if generate else training.BATCH_SIZE
 
     training.set_params(batch_size, segment_step, segment_len)
+    leadsheets = [training.filter_leadsheets(training.find_leadsheets(d)) for d in dataset]
 
     m = builders[modeltype].build(should_setup, check_nan, unroll_batch_num, **model_kwargs)
-
-    leadsheets = [training.find_leadsheets(d) for d in dataset]
 
     if resume_auto:
         paramfile = os.path.join(outputdir,'final_params.p')
