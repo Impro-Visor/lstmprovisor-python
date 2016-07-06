@@ -325,8 +325,33 @@ def write_chords(chords):
 
                         chord_str = root_s + ctype_s
                     else:
-                        print("Not a valid chord!")
-                        chord_str = "NC"
+                        # Try slash chords: "root" is bass, look for true root
+                        bass = root
+                        mod_ctype = [0] + ctype[1:]
+                        for offset in range(1,12):
+                            true_root = (bass + offset) % 12
+                            shifted_chord = rotate(ctype, -offset)
+                            mod_shifted_chord = rotate(mod_ctype, -offset)
+                            if shifted_chord in list(constants.CHORD_TYPES.values()):
+                                t_idx = list(constants.CHORD_TYPES.values()).index(shifted_chord)
+                            elif mod_shifted_chord in list(constants.CHORD_TYPES.values()):
+                                t_idx = list(constants.CHORD_TYPES.values()).index(mod_shifted_chord)
+                            else:
+                                continue
+
+                            ctype_s = list(constants.CHORD_TYPES.keys())[t_idx]
+
+                            r_idx = list(constants.CHORD_NOTE_OFFSETS.values()).index(true_root)
+                            root_s = list(constants.CHORD_NOTE_OFFSETS.keys())[r_idx]
+
+                            slash_idx = list(constants.CHORD_NOTE_OFFSETS.values()).index(bass)
+                            slash_s = list(constants.CHORD_NOTE_OFFSETS.keys())[slash_idx]
+
+                            chord_str = root_s + ctype_s + '/' + slash_s
+                            break
+                        else:
+                            print("Not a valid chord!")
+                            chord_str = "NC"
 
                 partial_measure.append([chord_str, 1])
 
