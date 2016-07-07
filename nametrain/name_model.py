@@ -109,17 +109,17 @@ def train_name(dataset_file):
 
     pickle.dump([p.get_value() for p in params], open("name_params.p", 'wb'))
 
-def generate_name(length, layer1=None, layer2=None, train_fn=None, gen_fn=None):
+def generate_name(length, layer1=None, layer2=None, train_fn=None, gen_fn=None, num_names=1):
     if layer1 is None:
         layer1, layer2, train_fn, gen_fn = name_model()
         params = layer1.params + [layer1.initial_hidden_state] + layer2.params
         loaded_params = pickle.load(open("name_params.p", 'rb'))
         for p,v in zip(params, loaded_params):
             p.set_value(v)
-
-    scan_outputs = gen_fn(length)
-    outval = []
-    for output in scan_outputs:
-        idx = np.nonzero(output)[0][0]
-        outval.append(CHARKEY[idx])
-    print(''.join(outval))
+    for i in range(num_names):
+        scan_outputs = gen_fn(length)
+        outval = []
+        for output in scan_outputs:
+            idx = np.nonzero(output)[0][0]
+            outval.append(CHARKEY[idx])
+        print(''.join(outval))
