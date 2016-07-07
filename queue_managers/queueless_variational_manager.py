@@ -32,7 +32,7 @@ class QueuelessVariationalQueueManager( QueueManager ):
     def helper_sample(self, input_activations):
         n_batch, n_time, _ = input_activations.shape
         means = input_activations[:,-1,:self.feature_size]
-        stdevs = input_activations[:,-1,self.feature_size:]
+        stdevs = abs(input_activations[:,-1,self.feature_size:]) + constants.EPSILON
         wiggle = self._srng.normal(means.shape)
 
         vect = means + (stdevs * wiggle)
@@ -55,7 +55,7 @@ class QueuelessVariationalQueueManager( QueueManager ):
         means_sq = means**2
         variance = stdevs**2
         variational_loss = -0.5 * T.sum(1 + T.log(variance) - means_sq - variance) * self._variational_loss_scale
-        
+
         info = {"variational_loss":variational_loss}
         info.update(sample_info)
         if extra_info:

@@ -3,6 +3,7 @@ import theano
 import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams
 import numpy as np
+import constants
 
 class VariationalQueueManager( QueueManager ):
     """
@@ -39,7 +40,7 @@ class VariationalQueueManager( QueueManager ):
         strengths = T.set_subtensor(strengths[:,-1],1)
 
         means = input_activations[:,:,1:1+self.feature_size]
-        stdevs = input_activations[:,:,1+self.feature_size:]
+        stdevs = abs(input_activations[:,:,1+self.feature_size:]) + constants.EPSILON
         wiggle = self._srng.normal(means.shape)
 
         vects = means + (stdevs * wiggle)
@@ -62,7 +63,7 @@ class VariationalQueueManager( QueueManager ):
         variational_loss = -0.5 * T.sum(1 + T.log(variance) - means_sq - variance) * self._variational_loss_scale
 
         full_loss = full_sparsity_loss + variational_loss
-        
+
         info = {"sparsity_loss": full_sparsity_loss, "variational_loss":variational_loss}
         info.update(sample_info)
         if extra_info:
