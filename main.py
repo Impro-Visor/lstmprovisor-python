@@ -57,7 +57,7 @@ builders['poex'] = ModelBuilder('poex', build_poex, config_poex, 'A product-of-e
 
 #######################
 
-def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_key, no_per_note, hide_output, sparsity_loss_scale, variational_loss_scale, loss_mode_priority=False, loss_mode_add=False, loss_mode_cutoff=None):
+def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_key, no_per_note, hide_output, sparsity_loss_scale, variational_loss_scale, loss_mode_priority=False, loss_mode_add=False, loss_mode_cutoff=None, loss_mode_trigger=None):
     bounds = constants.NoteBounds(48, 84) if encode_key == "cot" else constants.BOUNDS
     shift_modes = None
     if encode_key == "abs":
@@ -91,7 +91,10 @@ def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_ke
     elif queue_key == "nearness_std":
         qman = NearnessStandardQueueManager(100, sparsity_loss_scale*10, sparsity_loss_scale, 0.97)
 
-    loss_mode = "add" if loss_mode_add else ("cutoff", loss_mode_cutoff) if loss_mode_cutoff is not None else ("priority", loss_mode_priority if loss_mode_priority is not None else 50)
+    loss_mode = "add" if loss_mode_add else \
+                ("cutoff", loss_mode_cutoff) if loss_mode_cutoff is not None else \
+                ("trigger",)+tuple(loss_mode_trigger) if loss_mode_trigger is not None else \
+                ("priority", loss_mode_priority if loss_mode_priority is not None else 50)
 
     return CompressiveAutoencoderModel(qman, enc, sizes, sizes, shift_modes=shift_modes, bounds=bounds, hide_output=hide_output, inputs=inputs,
                 dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num, loss_mode=loss_mode)
@@ -107,6 +110,7 @@ def config_compae(parser):
     lossgroup.add_argument('--priority_loss', nargs='?', const=50, dest='loss_mode_priority', type=float, help='Use priority loss scaling mode (with the specified curviness)')
     lossgroup.add_argument('--add_loss', dest='loss_mode_add', action='store_true', help='Use adding loss scaling mode')
     lossgroup.add_argument('--cutoff_loss', dest='loss_mode_cutoff', type=float, metavar="CUTOFF", help='Use cutoff loss scaling mode with the specified per-batch cutoff')
+    lossgroup.add_argument('--trigger_loss', dest='loss_mode_trigger', nargs=2, type=float, metavar=("TRIGGER", "RAMP_TIME"), help='Use trigger loss scaling mode with the specified per-batch trigger value and desired ramp-up time')
 
 builders['compae'] = ModelBuilder('compae', build_compae, config_compae, 'A compressive autoencoder model.')
 

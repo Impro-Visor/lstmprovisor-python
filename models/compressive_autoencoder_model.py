@@ -67,7 +67,7 @@ class CompressiveAutoencoderModel( object ):
             self.loss_mode_params = loss_mode[1:]
         else:
             self.loss_mode = loss_mode
-        assert self.loss_mode in ["priority","add","cutoff"], "Invalid loss mode {}".format(loss_mode)
+        assert self.loss_mode in ["priority","add","cutoff","trigger"], "Invalid loss mode {}".format(loss_mode)
         if setup:
             print("Setting up train")
             self.setup_train()
@@ -139,6 +139,12 @@ class CompressiveAutoencoderModel( object ):
 
             queue_surrogate_loss_parts = self.qman.surrogate_loss(reconstruction_loss, queue_info)
 
+            updates = []
+            full_info = queue_info.copy()
+            full_info.update(reconstruction_info)
+            full_info["queue_loss"] = queue_loss
+            full_info["reconstruction_loss"] = reconstruction_loss
+
             float_n_batch = T.cast(n_batch,'float32')
             if self.loss_mode is "add":
                 full_loss = queue_loss + reconstruction_loss
@@ -160,13 +166,16 @@ class CompressiveAutoencoderModel( object ):
             elif self.loss_mode is "cutoff":
                 cutoff_val = np.array(self.loss_mode_params[0], np.float32)
                 full_loss = T.switch(reconstruction_loss<cutoff_val*float_n_batch, reconstruction_loss+queue_loss, reconstruction_loss)
+            elif self.loss_mode is "trigger":
+                trigger_val = np.array(self.loss_mode_params[0], np.float32)
+                trigger_speed = np.array(1.0/self.loss_mode_params[1], np.float32)
+                trigger_is_on = theano.shared(np.array(0, np.int8))
+                trigger_scale = theano.shared(np.array(0.0, np.float32))
+                full_loss = reconstruction_loss + trigger_scale * queue_loss
+                updates.append((trigger_is_on, T.or_(trigger_is_on, reconstruction_loss<trigger_val*float_n_batch)))
+                updates.append((trigger_scale, T.switch(trigger_is_on, T.minimum(trigger_scale + trigger_speed, np.array(1.0,np.float32)), np.array(0.0,np.float32))))
+                full_info["trigger_scale"] = trigger_scale
 
-            full_info = queue_info.copy()
-            full_info.update(reconstruction_info)
-            full_info["queue_loss"] = queue_loss
-            full_info["reconstruction_loss"] = reconstruction_loss
-
-            updates = []
             if queue_surrogate_loss_parts is not None:
                 surrogate_loss, addtl_updates = queue_surrogate_loss_parts
                 full_loss = full_loss + surrogate_loss
