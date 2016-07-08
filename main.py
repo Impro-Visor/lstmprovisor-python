@@ -79,7 +79,8 @@ def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_ke
         shift_modes=["drop","roll"]
         inputs = None
 
-    lossfun = lambda x: np.array(sparsity_loss_scale, np.float32) * T.log(1+99*x)/T.log(100)
+    unscaled_loss_fun = lambda x: T.log(1+99*x)/T.log(100)
+    lossfun = lambda x: np.array(sparsity_loss_scale, np.float32) * unscaled_loss_fun(x)
     if queue_key == "std":
         qman = StandardQueueManager(100, loss_fun=lossfun)
     elif queue_key == "var":
@@ -89,7 +90,7 @@ def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_ke
     elif queue_key == "queueless_var":
         qman = QueuelessVariationalQueueManager(300, variational_loss_scale=variational_loss_scale)
     elif queue_key == "nearness_std":
-        qman = NearnessStandardQueueManager(100, sparsity_loss_scale*10, sparsity_loss_scale, 0.97)
+        qman = NearnessStandardQueueManager(100, sparsity_loss_scale*10, sparsity_loss_scale, 0.97, loss_fun=unscaled_loss_fun)
 
     loss_mode = "add" if loss_mode_add else \
                 ("cutoff", loss_mode_cutoff) if loss_mode_cutoff is not None else \
