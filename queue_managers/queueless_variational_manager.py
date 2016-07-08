@@ -3,21 +3,24 @@ import theano
 import theano.tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams
 import numpy as np
+import constants
 
 class QueuelessVariationalQueueManager( QueueManager ):
     """
     A variational-autoencoder-based manager which does not use the queue, with a configurable loss
     """
 
-    def __init__(self, feature_size, variational_loss_scale=1):
+    def __init__(self, feature_size, period=None, variational_loss_scale=1):
         """
         Initialize the manager.
 
         Parameters:
             feature_size: The width of a feature
+            period: Period for queue activations
             variational_loss_scale: Factor by which to scale variational loss
         """
         self._feature_size = feature_size
+        self._period = period
         self._srng = MRG_RandomStreams(np.random.randint(0, 1024))
         self._variational_loss_scale = np.array(variational_loss_scale, np.float32)
 
@@ -38,7 +41,10 @@ class QueuelessVariationalQueueManager( QueueManager ):
         vect = means + (stdevs * wiggle)
 
         strengths = T.zeros((n_batch, n_time))
-        strengths = T.set_subtensor(strengths[:,-1],1)
+        if self._period is None:
+            strengths = T.set_subtensor(strengths[:,-1],1)
+        else:
+            strengths = T.set_subtensor(strengths[:,self._period-1::self._period],1)
         vects = T.zeros((n_batch, n_time, self.feature_size))
         vects = T.set_subtensor(vects[:,-1,:],vect)
 

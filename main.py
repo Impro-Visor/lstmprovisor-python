@@ -6,7 +6,7 @@ import collections
 
 from models import SimpleModel, ProductOfExpertsModel, CompressiveAutoencoderModel
 from note_encodings import AbsoluteSequentialEncoding, RelativeJumpEncoding, ChordRelativeEncoding, CircleOfThirdsEncoding
-from queue_managers import StandardQueueManager, VariationalQueueManager, SamplingVariationalQueueManager, QueuelessVariationalQueueManager, NearnessStandardQueueManager
+from queue_managers import StandardQueueManager, VariationalQueueManager, SamplingVariationalQueueManager, QueuelessVariationalQueueManager, QueuelessStandardQueueManager, NearnessStandardQueueManager
 import input_parts
 import leadsheet
 import training
@@ -57,7 +57,7 @@ builders['poex'] = ModelBuilder('poex', build_poex, config_poex, 'A product-of-e
 
 #######################
 
-def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_key, no_per_note, hide_output, sparsity_loss_scale, variational_loss_scale, loss_mode_priority=False, loss_mode_add=False, loss_mode_cutoff=None, loss_mode_trigger=None):
+def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_key, no_per_note, feature_size, hide_output, sparsity_loss_scale, variational_loss_scale, feature_period=None, loss_mode_priority=False, loss_mode_add=False, loss_mode_cutoff=None, loss_mode_trigger=None):
     bounds = constants.NoteBounds(48, 84) if encode_key == "cot" else constants.BOUNDS
     shift_modes = None
     if encode_key == "abs":
@@ -82,15 +82,17 @@ def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_ke
     unscaled_loss_fun = lambda x: T.log(1+99*x)/T.log(100)
     lossfun = lambda x: np.array(sparsity_loss_scale, np.float32) * unscaled_loss_fun(x)
     if queue_key == "std":
-        qman = StandardQueueManager(100, loss_fun=lossfun)
+        qman = StandardQueueManager(feature_size, loss_fun=lossfun)
     elif queue_key == "var":
-        qman = VariationalQueueManager(100, loss_fun=lossfun, variational_loss_scale=variational_loss_scale)
+        qman = VariationalQueueManager(feature_size, loss_fun=lossfun, variational_loss_scale=variational_loss_scale)
     elif queue_key == "sample_var":
-        qman = SamplingVariationalQueueManager(100, loss_fun=lossfun, variational_loss_scale=variational_loss_scale)
+        qman = SamplingVariationalQueueManager(feature_size, loss_fun=lossfun, variational_loss_scale=variational_loss_scale)
     elif queue_key == "queueless_var":
-        qman = QueuelessVariationalQueueManager(300, variational_loss_scale=variational_loss_scale)
+        qman = QueuelessVariationalQueueManager(feature_size, period=feature_period, variational_loss_scale=variational_loss_scale)
+    elif queue_key == "queueless_std":
+        qman = QueuelessStandardQueueManager(feature_size, period=feature_period)
     elif queue_key == "nearness_std":
-        qman = NearnessStandardQueueManager(100, sparsity_loss_scale*10, sparsity_loss_scale, 0.97, loss_fun=unscaled_loss_fun)
+        qman = NearnessStandardQueueManager(feature_size, sparsity_loss_scale*10, sparsity_loss_scale, 0.97, loss_fun=unscaled_loss_fun)
 
     loss_mode = "add" if loss_mode_add else \
                 ("cutoff", loss_mode_cutoff) if loss_mode_cutoff is not None else \
@@ -102,11 +104,13 @@ def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_ke
 
 def config_compae(parser):
     parser.add_argument('encode_key', choices=["abs","cot","rel","poex"], help='Type of encoding to use')
-    parser.add_argument('queue_key', choices=["std","var","sample_var","queueless_var","nearness_std"], help='Type of queue manager to use')
+    parser.add_argument('queue_key', choices=["std","var","sample_var","queueless_var","queueless_std","nearness_std"], help='Type of queue manager to use')
     parser.add_argument('--per_note', dest="no_per_note", action="store_false", help='Enable note memory cells')
     parser.add_argument('--hide_output', action="store_true", help='Hide previous outputs from the decoder')
     parser.add_argument('--sparsity_loss_scale', type=float, default="1", help='How much to scale the sparsity loss by')
     parser.add_argument('--variational_loss_scale', type=float, default="1", help='How much to scale the variational loss by')
+    parser.add_argument('--feature_size', type=int, default="100", help='Size of feature vectors')
+    parser.add_argument('--feature_period', type=int, help='If in queueless mode, period of features in timesteps')
     lossgroup = parser.add_mutually_exclusive_group()
     lossgroup.add_argument('--priority_loss', nargs='?', const=50, dest='loss_mode_priority', type=float, help='Use priority loss scaling mode (with the specified curviness)')
     lossgroup.add_argument('--add_loss', dest='loss_mode_add', action='store_true', help='Use adding loss scaling mode')
