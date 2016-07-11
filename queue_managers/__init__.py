@@ -5,3 +5,4 @@ from .sampling_variational_manager import SamplingVariationalQueueManager
 from .queueless_variational_manager import QueuelessVariationalQueueManager
 from .queueless_standard_manager import QueuelessStandardQueueManager
 from .nearness_standard_manager import NearnessStandardQueueManager
+from .noise_wrapper import NoiseWrapper

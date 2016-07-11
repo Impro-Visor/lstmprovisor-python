@@ -6,7 +6,7 @@ import collections
 
 from models import SimpleModel, ProductOfExpertsModel, CompressiveAutoencoderModel
 from note_encodings import AbsoluteSequentialEncoding, RelativeJumpEncoding, ChordRelativeEncoding, CircleOfThirdsEncoding
-from queue_managers import StandardQueueManager, VariationalQueueManager, SamplingVariationalQueueManager, QueuelessVariationalQueueManager, QueuelessStandardQueueManager, NearnessStandardQueueManager
+from queue_managers import StandardQueueManager, VariationalQueueManager, SamplingVariationalQueueManager, QueuelessVariationalQueueManager, QueuelessStandardQueueManager, NearnessStandardQueueManager, NoiseWrapper
 import input_parts
 import leadsheet
 import training
@@ -17,6 +17,7 @@ import theano.tensor as T
 import numpy as np
 import relative_data
 import constants
+from util import sliceMaker
 
 ModelBuilder = collections.namedtuple('ModelBuilder',['name', 'build', 'config_args', 'desc'])
 builders = {}
@@ -57,7 +58,7 @@ builders['poex'] = ModelBuilder('poex', build_poex, config_poex, 'A product-of-e
 
 #######################
 
-def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_key, no_per_note, feature_size, hide_output, sparsity_loss_scale, variational_loss_scale, feature_period=None, loss_mode_priority=False, loss_mode_add=False, loss_mode_cutoff=None, loss_mode_trigger=None):
+def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_key, no_per_note, feature_size, hide_output, sparsity_loss_scale, variational_loss_scale, feature_period=None, add_pre_noise=None, add_post_noise=None, loss_mode_priority=False, loss_mode_add=False, loss_mode_cutoff=None, loss_mode_trigger=None):
     bounds = constants.NoteBounds(48, 84) if encode_key == "cot" else constants.BOUNDS
     shift_modes = None
     if encode_key == "abs":
@@ -94,6 +95,13 @@ def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_ke
     elif queue_key == "nearness_std":
         qman = NearnessStandardQueueManager(feature_size, sparsity_loss_scale*10, sparsity_loss_scale, 0.97, loss_fun=unscaled_loss_fun)
 
+    if add_pre_noise is not None or add_post_noise is not None:
+        if "queueless" in queue_key:
+            pre_mask = sliceMaker[:]
+        else:
+            pre_mask = sliceMaker[1:]
+        qman = NoiseWrapper(qman, add_pre_noise, add_post_noise, pre_mask)
+
     loss_mode = "add" if loss_mode_add else \
                 ("cutoff", loss_mode_cutoff) if loss_mode_cutoff is not None else \
                 ("trigger",)+tuple(loss_mode_trigger) if loss_mode_trigger is not None else \
@@ -111,6 +119,8 @@ def config_compae(parser):
     parser.add_argument('--variational_loss_scale', type=float, default="1", help='How much to scale the variational loss by')
     parser.add_argument('--feature_size', type=int, default="100", help='Size of feature vectors')
     parser.add_argument('--feature_period', type=int, help='If in queueless mode, period of features in timesteps')
+    parser.add_argument('--add_pre_noise', type=float, nargs="?", const=1.0, help='Add Gaussian noise to the feature values')
+    parser.add_argument('--add_post_noise', type=float, nargs="?", const=1.0, help='Add Gaussian noise to the feature values')
     lossgroup = parser.add_mutually_exclusive_group()
     lossgroup.add_argument('--priority_loss', nargs='?', const=50, dest='loss_mode_priority', type=float, help='Use priority loss scaling mode (with the specified curviness)')
     lossgroup.add_argument('--add_loss', dest='loss_mode_add', action='store_true', help='Use adding loss scaling mode')

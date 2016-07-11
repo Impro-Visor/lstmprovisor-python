@@ -33,7 +33,7 @@ def initial_state_with_taps(layer, dimensions = None):
     else:
         return None
 
-        
+
 def get_last_layer(result):
     if isinstance(result, list):
         return result[-1]
@@ -53,3 +53,12 @@ def UpscaleMultiDropout(shapes, dropout = 0.):
     orig_masks = MultiDropout(shapes, dropout)
     fixed_masks = [m / (1-dropout) for m in orig_masks]
     return fixed_masks
+
+class _SliceHelperObj(object):
+    """
+    Helper object that exposes the slice from __getitem__ directly
+    """
+    def __getitem__(self, key):
+        return key
+
+sliceMaker = _SliceHelperObj()
