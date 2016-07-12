@@ -58,7 +58,7 @@ builders['poex'] = ModelBuilder('poex', build_poex, config_poex, 'A product-of-e
 
 #######################
 
-def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_key, no_per_note, feature_size, hide_output, sparsity_loss_scale, variational_loss_scale, feature_period=None, add_pre_noise=None, add_post_noise=None, loss_mode_priority=False, loss_mode_add=False, loss_mode_cutoff=None, loss_mode_trigger=None):
+def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_key, no_per_note, feature_size, hide_output, sparsity_loss_scale, variational_loss_scale, train_decoder_only, feature_period=None, add_pre_noise=None, add_post_noise=None, loss_mode_priority=False, loss_mode_add=False, loss_mode_cutoff=None, loss_mode_trigger=None):
     bounds = constants.NoteBounds(48, 84) if encode_key == "cot" else constants.BOUNDS
     shift_modes = None
     if encode_key == "abs":
@@ -108,7 +108,7 @@ def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_ke
                 ("priority", loss_mode_priority if loss_mode_priority is not None else 50)
 
     return CompressiveAutoencoderModel(qman, enc, sizes, sizes, shift_modes=shift_modes, bounds=bounds, hide_output=hide_output, inputs=inputs,
-                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num, loss_mode=loss_mode)
+                dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num, loss_mode=loss_mode, train_decoder_only=train_decoder_only)
 
 def config_compae(parser):
     parser.add_argument('encode_key', choices=["abs","cot","rel","poex"], help='Type of encoding to use')
@@ -121,6 +121,7 @@ def config_compae(parser):
     parser.add_argument('--feature_period', type=int, help='If in queueless mode, period of features in timesteps')
     parser.add_argument('--add_pre_noise', type=float, nargs="?", const=1.0, help='Add Gaussian noise to the feature values')
     parser.add_argument('--add_post_noise', type=float, nargs="?", const=1.0, help='Add Gaussian noise to the feature values')
+    parser.add_argument('--train-decoder-only', action="store_true", help='Only modify the decoder parameters')
     lossgroup = parser.add_mutually_exclusive_group()
     lossgroup.add_argument('--priority_loss', nargs='?', const=50, dest='loss_mode_priority', type=float, help='Use priority loss scaling mode (with the specified curviness)')
     lossgroup.add_argument('--add_loss', dest='loss_mode_add', action='store_true', help='Use adding loss scaling mode')

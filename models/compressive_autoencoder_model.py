@@ -20,7 +20,7 @@ from theano.compile.nanguardmode import NanGuardMode
 
 
 class CompressiveAutoencoderModel( object ):
-    def __init__(self, queue_manager, encodings, enc_layer_sizes, dec_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False, loss_mode="add", hide_output=True, unroll_batch_num=None, bounds=constants.BOUNDS):
+    def __init__(self, queue_manager, encodings, enc_layer_sizes, dec_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False, loss_mode="add", hide_output=True, train_decoder_only=False, unroll_batch_num=None, bounds=constants.BOUNDS):
 
         self.bounds = bounds
 
@@ -61,6 +61,7 @@ class CompressiveAutoencoderModel( object ):
         self.dec_fun = None
 
         self.nanguard = nanguard
+        self.train_decoder_only = train_decoder_only
 
         if isinstance(loss_mode, tuple):
             self.loss_mode = loss_mode[0]
@@ -185,7 +186,11 @@ class CompressiveAutoencoderModel( object ):
             return full_loss, full_info, updates
 
         train_loss, train_info, train_updates = _build(False)
-        adam_updates = Adam(train_loss, self.params)
+        if self.train_decoder_only:
+            params = list(itertools.chain(*(lstmstack.params for lstmstack in self.dec_lstmstacks)))
+        else:
+            params = self.params
+        adam_updates = Adam(train_loss, params)
 
         eval_loss, eval_info, _ = _build(True)
 
