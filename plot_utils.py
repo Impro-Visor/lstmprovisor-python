@@ -7,6 +7,9 @@ import numpy as np
 import os
 plt.ion()
 
+import custom_cmap
+my_cmap = matplotlib.colors.ListedColormap(custom_cmap.test_cm.colors[::-1])
+
 # probs = np.load('generation/dataset_10000_probs.npy')
 # probs_jump = np.load('generation/dataset_10000_info_0.npy')
 # probs_chord = np.load('generation/dataset_10000_info_1.npy')
@@ -14,9 +17,12 @@ plt.ion()
 # chosen_map = np.eye(probs.shape[-1])[chosen]
 
 def plot_note_dist(mat, name="", show_octaves=True):
-    f = plt.figure()
+    f = plt.figure(figsize=(20,5))
     f.canvas.set_window_title(name)
-    plt.imshow(mat.T, origin="lower", interpolation="nearest", cmap='viridis')
+    plt.imshow(mat.T, origin="lower", interpolation="nearest", cmap=my_cmap)
+    plt.xticks( np.arange(0,4*(constants.WHOLE//constants.RESOLUTION_SCALAR),(constants.QUARTER//constants.RESOLUTION_SCALAR)) )
+    plt.xlabel('Time (beat/12)')
+    plt.ylabel('Note')
     plt.colorbar()
     if show_octaves:
         for y in range(0,36,12):
@@ -28,9 +34,12 @@ def plot_note_dist(mat, name="", show_octaves=True):
     plt.show()
 
 def plot_scalar(mat, name=""):
-    f = plt.figure()
+    f = plt.figure(figsize=(20,5))
     f.canvas.set_window_title(name)
     plt.bar(range(mat.shape[0]),mat,1)
+    plt.xticks( np.arange(0,4*(constants.WHOLE//constants.RESOLUTION_SCALAR),(constants.QUARTER//constants.RESOLUTION_SCALAR)) )
+    plt.xlabel('Time (beat/12)')
+    plt.ylabel('Strength')
     for x in range(0,4*(constants.WHOLE//constants.RESOLUTION_SCALAR),(constants.QUARTER//constants.RESOLUTION_SCALAR)):
         plt.axvline(x, color='k')
     for x in range(0,4*(constants.WHOLE//constants.RESOLUTION_SCALAR),(constants.WHOLE//constants.RESOLUTION_SCALAR)):
