@@ -137,8 +137,12 @@ def main(modeltype, batch_size, segment_len, segment_step, dataset=["dataset"], 
     should_setup = not generate
     unroll_batch_num = None if generate else training.BATCH_SIZE
 
-    training.set_params(batch_size, segment_step, segment_len)
-    leadsheets = [training.filter_leadsheets(training.find_leadsheets(d)) for d in dataset]
+    if generate_over is None:
+        training.set_params(batch_size, segment_step, segment_len)
+        leadsheets = [training.filter_leadsheets(training.find_leadsheets(d)) for d in dataset]
+    else:
+        # Don't bother loading leadsheets, we don't need them
+        leadsheets = []
 
     m = builders[modeltype].build(should_setup, check_nan, unroll_batch_num, **model_kwargs)
 
