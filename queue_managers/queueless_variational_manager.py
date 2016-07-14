@@ -34,19 +34,17 @@ class QueuelessVariationalQueueManager( QueueManager ):
 
     def helper_sample(self, input_activations):
         n_batch, n_time, _ = input_activations.shape
-        means = input_activations[:,-1,:self.feature_size]
-        stdevs = abs(input_activations[:,-1,self.feature_size:]) + constants.EPSILON
+        means = input_activations[:,:,:self.feature_size]
+        stdevs = abs(input_activations[:,:,self.feature_size:]) + constants.EPSILON
         wiggle = self._srng.normal(means.shape)
 
-        vect = means + (stdevs * wiggle)
+        vects = means + (stdevs * wiggle)
 
         strengths = T.zeros((n_batch, n_time))
         if self._period is None:
             strengths = T.set_subtensor(strengths[:,-1],1)
         else:
             strengths = T.set_subtensor(strengths[:,self._period-1::self._period],1)
-        vects = T.zeros((n_batch, n_time, self.feature_size))
-        vects = T.set_subtensor(vects[:,-1,:],vect)
 
         return strengths, vects, means, stdevs, {}
 
@@ -60,7 +58,12 @@ class QueuelessVariationalQueueManager( QueueManager ):
 
         means_sq = means**2
         variance = stdevs**2
-        variational_loss = -0.5 * T.sum(1 + T.log(variance) - means_sq - variance) * self._variational_loss_scale
+        loss_parts = 1 + T.log(variance) - means_sq - variance
+        if self._period is None:
+            loss_parts = loss_parts[:,-1]
+        else:
+            loss_parts = loss_parts[:,self._period-1::self._period]
+        variational_loss = -0.5 * T.sum(loss_parts) * self._variational_loss_scale
 
         info = {"variational_loss":variational_loss}
         info.update(sample_info)
