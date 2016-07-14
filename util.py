@@ -1,4 +1,5 @@
 import theano
+import os
 import theano.tensor as T
 import numpy as np
 from theano_lstm import MultiDropout
@@ -62,3 +63,27 @@ class _SliceHelperObj(object):
         return key
 
 sliceMaker = _SliceHelperObj()
+
+def _better_print_fn(op, xin):
+    for item in op.attrs:
+        if callable(item):
+            pmsg = item(xin)
+        else:
+            temp = getattr(xin, item)
+            if callable(temp):
+                pmsg = temp()
+            else:
+                pmsg = temp
+        print(op.message, attr, '=', pmsg)
+
+def FnPrint(name, items=['__str__']):
+    return theano.printing.Print(name, items, _better_print_fn)
+
+def Save(path="", preprocess=lambda x:x, text=False):
+    def _save_fn(op, xin):
+        val = preprocess(xin)
+        if text:
+            np.savetxt(path + ".csv", val, delimiter=",")
+        else:
+            np.save(path + ".npy", val)
+    return theano.printing.Print(path, [], _save_fn)
