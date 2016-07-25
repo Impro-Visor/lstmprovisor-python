@@ -11,7 +11,7 @@ def main(file, keys=None, output=None, make_zip=False):
     params = pickle.load(open(file, 'rb'))
     param_vals = [x if isinstance(x,np.ndarray) else x.get_value() for x in params]
     if output is None:
-        output = os.path.splitext(file)[0] + (".nnpz" if make_zip else "-raw")
+        output = os.path.splitext(file)[0] + (".ctome" if make_zip else "-raw")
     if keys is None:
         key_names = [str(x) for x in range(len(params))]
     else:
@@ -33,7 +33,7 @@ parser = argparse.ArgumentParser(description='Convert a parameters file into CSV
 parser.add_argument('file', help='File to process')
 parser.add_argument('--keys', help='File to load parameter names from')
 parser.add_argument('--output', help='Base name of the output files')
-parser.add_argument('--zip', dest='make_zip', action='store_true', help='Create a zip file instead of individual files')
+parser.add_argument('--raw', dest='make_zip', action='store_false', help='Create individual files instead of a zip file')
 
 if __name__ == '__main__':
     args = parser.parse_args()
