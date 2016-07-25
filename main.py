@@ -121,7 +121,7 @@ def config_compae(parser):
     parser.add_argument('--feature_period', type=int, help='If in queueless mode, period of features in timesteps')
     parser.add_argument('--add_pre_noise', type=float, nargs="?", const=1.0, help='Add Gaussian noise to the feature values')
     parser.add_argument('--add_post_noise', type=float, nargs="?", const=1.0, help='Add Gaussian noise to the feature values')
-    parser.add_argument('--train-decoder-only', action="store_true", help='Only modify the decoder parameters')
+    parser.add_argument('--train_decoder_only', action="store_true", help='Only modify the decoder parameters')
     lossgroup = parser.add_mutually_exclusive_group()
     lossgroup.add_argument('--priority_loss', nargs='?', const=50, dest='loss_mode_priority', type=float, help='Use priority loss scaling mode (with the specified curviness)')
     lossgroup.add_argument('--add_loss', dest='loss_mode_add', action='store_true', help='Use adding loss scaling mode')
