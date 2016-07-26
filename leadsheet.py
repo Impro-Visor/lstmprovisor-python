@@ -88,18 +88,22 @@ def parse_duration(durstr):
             # Not a tuplet
             [dur_frac_str] = tupl_parts
             dur_frac = int(dur_frac_str)
+            assert constants.WHOLE % dur_frac == 0, "Bad duration {} -> {} / {}".format(durstr, constants.WHOLE, dur_frac)
             slots = constants.WHOLE // dur_frac
         else:
             [dur_frac_str, tuplet_str] = tupl_parts
             dur_frac = int(dur_frac_str)
             dur_tupl = int(tuplet_str)
+            assert (constants.WHOLE * (dur_tupl-1)) % (dur_frac * dur_tupl) == 0, "Bad duration {} -> {} / {}".format(durstr, (constants.WHOLE * (dur_tupl-1)), (dur_frac * dur_tupl))
             slots = constants.WHOLE * (dur_tupl-1) // (dur_frac * dur_tupl)
 
         for i in range(num_dots):
+            assert (slots * 3) % 2 == 0, "Bad duration {} -> {} / {}".format(durstr, (slots * 3), 2)
             slots = slots * 3 // 2
 
         accum_dur += slots
 
+    assert accum_dur % constants.RESOLUTION_SCALAR == 0, "Bad duration {}: {} not a multiple of resolution {}".format(durstr, (slots * 3), accum_dur, constants.RESOLUTION_SCALAR)
     return accum_dur//constants.RESOLUTION_SCALAR
 
 def parse_note(nstr):
