@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import sys
+import argparse
 
 def plot_file(fn):
     with open(fn,'r') as f:
@@ -23,5 +24,9 @@ def plot_file(fn):
     plt.legend(handles, colnames[1:])
     plt.show()
 
+parser = argparse.ArgumentParser(description='Plot a .csv file')
+parser.add_argument('fn', help='File to plot')
+
 if __name__ == '__main__':
-    plot_file(sys.argv[1])
+    args = parser.parse_args()
+    plot_file(**vars(args))

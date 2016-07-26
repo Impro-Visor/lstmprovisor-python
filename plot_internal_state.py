@@ -5,6 +5,7 @@ import itertools
 import sys
 import numpy as np
 import os
+import argparse
 plt.ion()
 
 import custom_cmap
@@ -64,6 +65,11 @@ def plot_all(folder, idx=0):
     except FileNotFoundError:
         pass
 
+parser = argparse.ArgumentParser(description='Plot the internal state of a network')
+parser.add_argument('folder', help='Directory with the generated files')
+parser.add_argument('idx', type=int, help='Zero-based index of the output to visualize')
+
 if __name__ == '__main__':
-    plot_all(sys.argv[1], int(sys.argv[2]))
+    args = parser.parse_args()
+    plot_all(**vars(args))
     input("Press enter to close.")

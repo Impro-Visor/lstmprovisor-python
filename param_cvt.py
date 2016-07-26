@@ -30,12 +30,12 @@ def main(file, precision, keys=None, output=None, make_zip=False):
         for name,val in zip(key_names, param_vals):
             np.savetxt("{}_{}.csv".format(output,name.strip()), val, fmt=fmt, delimiter=",")
 
-parser = argparse.ArgumentParser(description='Convert a parameters file into CSV files')
+parser = argparse.ArgumentParser(description='Convert a python parameters file into an Impro-Visor connectome file')
 parser.add_argument('file', help='File to process')
 parser.add_argument('--keys', help='File to load parameter names from')
 parser.add_argument('--output', help='Base name of the output files')
 parser.add_argument('--precision', default=18, type=int, help='Decimal points of precision to use (default 18)')
-parser.add_argument('--raw', dest='make_zip', action='store_false', help='Create individual files instead of a zip file')
+parser.add_argument('--raw', dest='make_zip', action='store_false', help='Create individual csv files instead of a connectome file')
 
 if __name__ == '__main__':
     args = parser.parse_args()
