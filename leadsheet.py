@@ -103,7 +103,7 @@ def parse_duration(durstr):
 
         accum_dur += slots
 
-    assert accum_dur % constants.RESOLUTION_SCALAR == 0, "Bad duration {}: {} not a multiple of resolution {}".format(durstr, (slots * 3), accum_dur, constants.RESOLUTION_SCALAR)
+    assert accum_dur % constants.RESOLUTION_SCALAR == 0, "Bad duration {}: {} not a multiple of resolution {}".format(durstr, accum_dur, constants.RESOLUTION_SCALAR)
     return accum_dur//constants.RESOLUTION_SCALAR
 
 def parse_note(nstr):
