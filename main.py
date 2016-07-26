@@ -15,7 +15,6 @@ import theano
 import theano.tensor as T
 
 import numpy as np
-import relative_data
 import constants
 from util import sliceMaker
 
