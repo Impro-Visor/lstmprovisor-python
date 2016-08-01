@@ -12,12 +12,10 @@ def main(file, precision, keys=None, output=None, make_zip=False):
     param_vals = [x if isinstance(x,np.ndarray) else x.get_value() for x in params]
     if output is None:
         output = os.path.splitext(file)[0] + (".ctome" if make_zip else "-raw")
-    if keys is None:
-        key_names = [str(x) for x in range(len(params))]
-    else:
-        with open(keys,'r') as f:
-            key_names = f.readlines()
-        assert len(key_names) == len(params), "Wrong number of keys for params! {} keys, {} params".format(len(key_names), len(params))
+
+    with open(keys,'r') as f:
+        key_names = f.readlines()
+    assert len(key_names) == len(params), "Wrong number of keys for params! {} keys, {} params".format(len(key_names), len(params))
 
     fmt = '%.{}e'.format(precision)
     if make_zip:
@@ -32,7 +30,7 @@ def main(file, precision, keys=None, output=None, make_zip=False):
 
 parser = argparse.ArgumentParser(description='Convert a python parameters file into an Impro-Visor connectome file')
 parser.add_argument('file', help='File to process')
-parser.add_argument('--keys', help='File to load parameter names from')
+parser.add_argument('--keys', help='File to load parameter names from', required=True)
 parser.add_argument('--output', help='Base name of the output files')
 parser.add_argument('--precision', default=18, type=int, help='Decimal points of precision to use (default 18)')
 parser.add_argument('--raw', dest='make_zip', action='store_false', help='Create individual csv files instead of a connectome file')

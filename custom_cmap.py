@@ -265,6 +265,8 @@ cm_data = [[  3.19188006e-01,  5.08411011e-04,  4.27847166e-02],
            [  9.75895168e-01,  9.95883564e-01,  9.93326172e-01],
            [  9.81275361e-01,  9.99697973e-01,  9.98479623e-01]]
 
+cm_data = [x for i,x in enumerate(cm_data) for _ in range((len(cm_data)-i))]
+
 test_cm = ListedColormap(cm_data, name=__file__)
 
 

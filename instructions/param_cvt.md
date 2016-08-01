@@ -1,7 +1,7 @@
 #param_cvt.py: Convert a python parameters file into a connectome file
 
 ```
-usage: param_cvt.py [-h] [--keys KEYS] [--output OUTPUT]
+usage: param_cvt.py [-h] --keys KEYS [--output OUTPUT]
                     [--precision PRECISION] [--raw]
                     file
 
