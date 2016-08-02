@@ -21,6 +21,8 @@ $ python3 main.py [general arguments] MODELTYPE [model-specific arguments]
   --check_nan           Check for nans during execution (default: False)
   --batch_size BATCH_SIZE
                         Size of batch (default: 10)
+  --iterations ITERATIONS
+                        How many iterations to train (default: 50000)
   --segment_len SEGMENT_LEN
                         Length of segment to train on (default: 4bar)
   --segment_step SEGMENT_STEP
