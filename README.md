@@ -2,7 +2,7 @@
 
 This project allows you to train LSTM-based neural network models of jazz music in the .ls format, as well as convert the models into connectome files for use in Impro-Visor.
 
-## Dependencies
+## Dependencies and Setup
 
 In order to run this project, you will need to install [Python 3.5][] (or later). You will also need the libraries `theano`, `theano-lstm`, `sexpdata`, and `matplotlib`, which you can install with
 
@@ -11,6 +11,24 @@ pip3 install theano theano-lstm sexpdata matplotlib
 ```
 
 [Python 3.5]: https://www.python.org/downloads/
+
+Note that Theano depends on SciPy. If you do not already have SciPy, `pip3` should install SciPy automatically when you install Theano, but if that fails, you can download SciPy from [their website][scipy]. Alternately, you can install a Python 3.5 distribution that already has SciPy installed, such as [Anaconda][].
+ 
+[scipy]: http://scipy.org/install.html
+[Anaconda]: https://www.continuum.io/downloads
+
+Before using the scripts, you will also need to make a file called `.theanorc` in your home directory, with the following contents:
+
+```
+[global]
+floatX=float32
+
+[mode]=FAST_RUN
+```
+
+For additional Theano configuration options, including instructions on how to use the GPU, see the [theano config documentation][configdoc].
+
+[configdoc]: http://deeplearning.net/software/theano/library/config.html
 
 ## Scripts
 
