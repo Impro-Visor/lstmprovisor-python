@@ -55,7 +55,7 @@ Some general examples follow. See detailed instruction pages for more in-depth e
 Train a product-of-experts generative model on a directory of leadsheet fileswith path `datasets/my_dataset`, automatically resuming training if previously interrupted. By default, each leadsheet file will be split into 4-bar chunks starting at each bar.
 
 ```
-$ python3 main.py --dataset datasets/my_dataset --outputdir output_my_dataset --resume-auto poex
+$ python3 main.py --dataset datasets/my_dataset --outputdir output_my_dataset --resume_auto poex
 ```
 
 Generate some leadsheets using the trained product-of-experts model, sampling from the dataset:
@@ -85,7 +85,7 @@ $ python3 param_cvt.py --keys param_keys/poex_keys.txt output_my_dataset/final_p
 Train a compressing autoencoder on the same dataset, using fixed features and product-of-experts for compatibility with Impro-Visor:
 
 ```
-$ python3 main.py --dataset datasets/my_dataset --outputdir output_my_dataset_compae --resume-auto compae poex queueless_std --feature_period 24 --add_loss
+$ python3 main.py --dataset datasets/my_dataset --outputdir output_my_dataset_compae --resume_auto compae poex queueless_std --feature_period 24 --add_loss
 ```
 
 Run the autoencoder on some leadsheets from the dataset, and then combine the input and output into a trading summary leadsheet:

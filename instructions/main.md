@@ -142,13 +142,13 @@ For some queue mangers, there are multiple loss values: the reconstruction loss,
 Train a product-of-experts generative model on a directory of leadsheet fileswith path `datasets/my_dataset`, automatically resuming training if previously interrupted. Each leadsheet file will be split into 4-bar chunks starting at each bar.
 
 ```
-$ python3 main.py --dataset datasets/my_dataset --outputdir output_my_dataset --resume-auto poex
+$ python3 main.py --dataset datasets/my_dataset --outputdir output_my_dataset --resume_auto poex
 ```
 
 Train a product-of-experts generative model as before, but split each leadsheet into 8-bar chunks, starting at each multiple of 4 bars:
 
 ```
-$ python3 main.py --dataset datasets/my_dataset --outputdir output_my_dataset  --resume-auto --segment_len 8bar --segment-step 4bar poex
+$ python3 main.py --dataset datasets/my_dataset --outputdir output_my_dataset  --resume_auto --segment_len 8bar --segment_step 4bar poex
 ```
 
 Generate some leadsheets using a trained product-of-experts model, sampling from the dataset:
@@ -172,19 +172,19 @@ $ python3 main.py --dataset datasets/my_dataset --outputdir output_my_dataset/ge
 Train a compressing autoencoder on the same dataset, using fixed features and product-of-experts for compatibility with Impro-Visor:
 
 ```
-$ python3 main.py --dataset datasets/my_dataset --outputdir output_my_dataset_compae --resume-auto compae poex queueless_std --feature_period 24 --add_loss
+$ python3 main.py --dataset datasets/my_dataset --outputdir output_my_dataset_compae --resume_auto compae poex queueless_std --feature_period 24 --add_loss
 ```
 
 As above, but train a variational autoencoder instead of a standard one, scaling the variational loss by 0.01 and only enforcing the variational loss after the reconstruction loss drops below 4 per sample:
 
 ```
-$ python3 main.py --dataset datasets/my_dataset --outputdir output_my_dataset_compae --resume-auto compae poex queueless_var --feature_period 24 --trigger_loss 4 2000
+$ python3 main.py --dataset datasets/my_dataset --outputdir output_my_dataset_compae --resume_auto compae poex queueless_var --feature_period 24 --trigger_loss 4 2000
 ```
 
 As above, but with a standard autoencoder and variable-size features:
 
 ```
-$ python3 main.py --dataset datasets/my_dataset --outputdir output_my_dataset_compae --resume-auto compae poex std --trigger_loss 4 2000
+$ python3 main.py --dataset datasets/my_dataset --outputdir output_my_dataset_compae --resume_auto compae poex std --trigger_loss 4 2000
 ```
 
 Run the autoencoder and generate some output:
