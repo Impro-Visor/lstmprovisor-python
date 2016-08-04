@@ -43,39 +43,41 @@ builders['simple'] = ModelBuilder('simple', build_simple, config_simple, 'A simp
 
 #######################
 
-def build_poex(should_setup, check_nan, unroll_batch_num, no_per_note):
+def build_poex(should_setup, check_nan, unroll_batch_num, no_per_note, layer_size, num_layers):
     encs = [RelativeJumpEncoding(), ChordRelativeEncoding()]
-    sizes = [[(300,0),(300,0)], [(300,0),(300,0)]] if no_per_note else [[(200,10),(200,10)], [(200,10),(200,10)]]
+    sizes = [[(layer_size,0)]*num_layers]*2 if no_per_note else [[(200,10),(200,10)], [(200,10),(200,10)]]
 
     return ProductOfExpertsModel(encs, sizes, shift_modes=["drop","roll"],
         dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)
 
 def config_poex(parser):
     parser.add_argument('--per_note', dest="no_per_note", action="store_false", help='Enable note memory cells')
+    parser.add_argument('--layer_size', type=int, default=300, help='Layer size of the LSTMs. Only works without note memory cells')
+    parser.add_argument('--num_layers', type=int, default=2, help='Number of LSTM layers. Only works without note memory cells')
 
 builders['poex'] = ModelBuilder('poex', build_poex, config_poex, 'A product-of-experts LSTM sequential model, using note and chord relative encodings.')
 
 #######################
 
-def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_key, no_per_note, feature_size, hide_output, sparsity_loss_scale, variational_loss_scale, train_decoder_only, feature_period=None, add_pre_noise=None, add_post_noise=None, loss_mode_priority=False, loss_mode_add=False, loss_mode_cutoff=None, loss_mode_trigger=None):
+def build_compae(should_setup, check_nan, unroll_batch_num, encode_key, queue_key, no_per_note, layer_size, num_layers, feature_size, hide_output, sparsity_loss_scale, variational_loss_scale, train_decoder_only, feature_period=None, add_pre_noise=None, add_post_noise=None, loss_mode_priority=False, loss_mode_add=False, loss_mode_cutoff=None, loss_mode_trigger=None):
     bounds = constants.NoteBounds(48, 84) if encode_key == "cot" else constants.BOUNDS
     shift_modes = None
     if encode_key == "abs":
         enc = [AbsoluteSequentialEncoding(constants.BOUNDS.lowbound, constants.BOUNDS.highbound)]
-        sizes = [[(300,0),(300,0)]]
+        sizes = [[(layer_size,0)]*num_layers]
         inputs = [[input_parts.BeatInputPart(), input_parts.ChordShiftInputPart()]]
     elif encode_key == "cot":
         enc = [CircleOfThirdsEncoding(bounds.lowbound, (bounds.highbound-bounds.lowbound)//12)]
-        sizes = [[(300,0),(300,0)]]
+        sizes = [[(layer_size,0)]*num_layers]
         inputs = [[input_parts.BeatInputPart(), input_parts.ChordShiftInputPart()]]
     elif encode_key == "rel":
         enc = [RelativeJumpEncoding()]
-        sizes = [[(200,10),(200,10)] if (not no_per_note) else [(300,0),(300,0)]]
+        sizes = [[(200,10),(200,10)] if (not no_per_note) else [[(layer_size,0)]*num_layers]]
         shift_modes=["drop"]
         inputs = None
     elif encode_key == "poex":
         enc = [RelativeJumpEncoding(), ChordRelativeEncoding()]
-        sizes = [ [(200,10),(200,10)] if (not no_per_note) else [(300,0),(300,0)] ]*2
+        sizes = [ [(200,10),(200,10)] if (not no_per_note) else [[(layer_size,0)]*num_layers] ]*2
         shift_modes=["drop","roll"]
         inputs = None
 
@@ -121,6 +123,8 @@ def config_compae(parser):
     parser.add_argument('--add_pre_noise', type=float, nargs="?", const=1.0, help='Add Gaussian noise to the feature values before applying the activation function')
     parser.add_argument('--add_post_noise', type=float, nargs="?", const=1.0, help='Add Gaussian noise to the feature values after applying the activation function')
     parser.add_argument('--train_decoder_only', action="store_true", help='Only modify the decoder parameters')
+    parser.add_argument('--layer_size', type=int, default=300, help='Layer size of the LSTMs. Only works without note memory cells')
+    parser.add_argument('--num_layers', type=int, default=2, help='Number of LSTM layers. Only works without note memory cells')
     lossgroup = parser.add_mutually_exclusive_group()
     lossgroup.add_argument('--priority_loss', nargs='?', const=50, dest='loss_mode_priority', type=float, help='Use priority loss scaling mode (with the specified curviness)')
     lossgroup.add_argument('--add_loss', dest='loss_mode_add', action='store_true', help='Use adding loss scaling mode')

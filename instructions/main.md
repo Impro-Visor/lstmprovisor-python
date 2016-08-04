@@ -72,6 +72,12 @@ This is the type of generative model available in Impro-Visor.
 ```
   -h, --help            show this help message and exit
   --per_note  Enable note memory cells
+  --layer_size LAYER_SIZE
+                        Layer size of the LSTMs. Only works without note
+                        memory cells
+  --num_layers NUM_LAYERS
+                        Number of LSTM layers. Only works without note memory
+                        cells
 ```
 `--per_note` enables memory cells which are fixed to particular notes and do not shift with the rest of the network. Although these were investigated as being potentially useful, they did not give a significant advantage and were not implemented in Impro-Visor for simplicity. If you wish to train a model for Impro-Visor, do not use the `--per_note` flag.
 
@@ -106,6 +112,12 @@ optional arguments:
                         Add Gaussian noise to the feature values after
                         applying the activation function
   --train_decoder_only  Only modify the decoder parameters
+  --layer_size LAYER_SIZE
+                        Layer size of the LSTMs. Only works without note
+                        memory cells
+  --num_layers NUM_LAYERS
+                        Number of LSTM layers. Only works without note memory
+                        cells
   --priority_loss [LOSS_MODE_PRIORITY]
                         Use priority loss scaling mode (with the specified
                         curviness)
