@@ -55,6 +55,8 @@ class CompressiveAutoencoderModel( object ):
 
         self.srng = MRG_RandomStreams(np.random.randint(1, 1024))
 
+        self.learning_rate_var = theano.shared(np.array(0.0002, theano.config.floatX))
+
         self.update_fun = None
         self.eval_fun = None
         self.enc_fun = None
@@ -90,6 +92,9 @@ class CompressiveAutoencoderModel( object ):
                 lstmstack.params = mycopy[:len(lstmstack.params)]
                 del mycopy[:len(lstmstack.params)]
         assert len(mycopy) == 0
+
+    def set_learning_rate(self, lr):
+        self.learning_rate_var.set_value(np.array(lr, theano.config.floatX))
 
     def setup_train(self):
 
@@ -190,7 +195,7 @@ class CompressiveAutoencoderModel( object ):
             params = list(itertools.chain(*(lstmstack.params for lstmstack in self.dec_lstmstacks)))
         else:
             params = self.params
-        adam_updates = Adam(train_loss, params)
+        adam_updates = Adam(train_loss, params, lr=self.learning_rate_var)
 
         eval_loss, eval_info, _ = _build(True)
 

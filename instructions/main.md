@@ -23,6 +23,9 @@ $ python3 main.py [general arguments] MODELTYPE [model-specific arguments]
                         Size of batch (default: 10)
   --iterations ITERATIONS
                         How many iterations to train (default: 50000)
+  --learning_rate LEARNING_RATE
+                        Learning rate for the ADAM gradient descent method
+                        (default: 0.0002)
   --segment_len SEGMENT_LEN
                         Length of segment to train on (default: 4bar)
   --segment_step SEGMENT_STEP

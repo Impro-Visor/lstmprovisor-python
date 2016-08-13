@@ -135,7 +135,7 @@ builders['compae'] = ModelBuilder('compae', build_compae, config_compae, 'A comp
 
 ###################################################################################################################
 
-def main(modeltype, batch_size, iterations, segment_len, segment_step, dataset=["dataset"], outputdir="output", validation=None, resume=None, resume_auto=False, check_nan=False, generate=False, generate_over=None, **model_kwargs):
+def main(modeltype, batch_size, iterations, learning_rate, segment_len, segment_step, dataset=["dataset"], outputdir="output", validation=None, resume=None, resume_auto=False, check_nan=False, generate=False, generate_over=None, **model_kwargs):
     generate = generate or (generate_over is not None)
     should_setup = not generate
     unroll_batch_num = None if generate else training.BATCH_SIZE
@@ -148,6 +148,7 @@ def main(modeltype, batch_size, iterations, segment_len, segment_step, dataset=[
         leadsheets = []
 
     m = builders[modeltype].build(should_setup, check_nan, unroll_batch_num, **model_kwargs)
+    m.set_learning_rate(learning_rate)
 
     if resume_auto:
         paramfile = os.path.join(outputdir,'final_params.p')
@@ -219,6 +220,7 @@ parser.add_argument('--outputdir', default='output', help='Path to output folder
 parser.add_argument('--check_nan', action='store_true', help='Check for nans during execution')
 parser.add_argument('--batch_size', type=int, default=10, help='Size of batch')
 parser.add_argument('--iterations', type=int, default=50000, help='How many iterations to train')
+parser.add_argument('--learning_rate', type=float, default=0.0002, help='Learning rate for the ADAM gradient descent method')
 parser.add_argument('--segment_len', type=cvt_time, default="4bar", help='Length of segment to train on')
 parser.add_argument('--segment_step', type=cvt_time, default="1bar", help='Period at which segments may begin')
 resume_group = parser.add_mutually_exclusive_group()

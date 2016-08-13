@@ -32,6 +32,8 @@ class SimpleModel(object):
 
         self.srng = MRG_RandomStreams(np.random.randint(1, 1024))
 
+        self.learning_rate_var = theano.shared(np.array(0.0002, theano.config.floatX))
+
         self.update_fun = None
         self.eval_fun = None
         self.gen_fun = None
@@ -52,6 +54,9 @@ class SimpleModel(object):
     @params.setter
     def params(self, paramlist):
         self.lstmstack.params = paramlist
+
+    def set_learning_rate(self, lr):
+        self.learning_rate_var.set_value(np.array(lr, theano.config.floatX))
 
     def setup_train(self):
 
@@ -85,7 +90,7 @@ class SimpleModel(object):
             return Encoding.compute_loss(out_probs, correct_notes, True)
 
         train_loss, train_info = _build(False)
-        updates = Adam(train_loss, self.params)
+        updates = Adam(train_loss, self.params, lr=self.learning_rate_var)
 
         eval_loss, eval_info = _build(True)
 
