@@ -103,7 +103,7 @@ def validate(model, validation_leadsheets):
         accum_loss[k] /= VALIDATION_CT
     return accum_loss, accum_info
 
-def train(model,leadsheets,num_updates,outputdir,start=0,validation_leadsheets=None):
+def train(model,leadsheets,num_updates,outputdir,start=0,save_params_interval=5000,validation_leadsheets=None):
     stopflag = [False]
     def signal_handler(signame, sf):
         stopflag[0] = True
@@ -122,7 +122,7 @@ def train(model,leadsheets,num_updates,outputdir,start=0,validation_leadsheets=N
             f.write("{}, {}, ".format(i,loss) + ", ".join(str(v) for k,v in sorted(infos.items())) + "\n")
         if i % 10 == 0:
             print("update {}: {}, info {}".format(i,loss,pformat(infos)))
-        if i % 5000 == 0 or i==1:
+        if save_params_interval is not None and i % save_params_interval == 0:
             generate(model, leadsheets, os.path.join(outputdir,'sample{}'.format(i)))
             pickle.dump(model.params,open(os.path.join(outputdir, 'params{}.p'.format(i)), 'wb'))
             if validation_leadsheets is not None:

@@ -135,7 +135,7 @@ builders['compae'] = ModelBuilder('compae', build_compae, config_compae, 'A comp
 
 ###################################################################################################################
 
-def main(modeltype, batch_size, iterations, learning_rate, segment_len, segment_step, dataset=["dataset"], outputdir="output", validation=None, resume=None, resume_auto=False, check_nan=False, generate=False, generate_over=None, **model_kwargs):
+def main(modeltype, batch_size, iterations, learning_rate, segment_len, segment_step, train_save_params, dataset=["dataset"], outputdir="output", validation=None, resume=None, resume_auto=False, check_nan=False, generate=False, generate_over=None, **model_kwargs):
     generate = generate or (generate_over is not None)
     should_setup = not generate
     unroll_batch_num = None if generate else training.BATCH_SIZE
@@ -204,7 +204,7 @@ def main(modeltype, batch_size, iterations, learning_rate, segment_len, segment_
         end_time = time.process_time()
         print("Generation took {} seconds.".format(end_time-start_time))
     else:
-        training.train(m, leadsheets, iterations, outputdir, start_idx, validation_leadsheets=validation)
+        training.train(m, leadsheets, iterations, outputdir, start_idx, train_save_params, validation_leadsheets=validation)
         pickle.dump( m.params, open( os.path.join(outputdir, "final_params.p"), "wb" ) )
 
 def cvt_time(s):
@@ -223,6 +223,8 @@ parser.add_argument('--iterations', type=int, default=50000, help='How many iter
 parser.add_argument('--learning_rate', type=float, default=0.0002, help='Learning rate for the ADAM gradient descent method')
 parser.add_argument('--segment_len', type=cvt_time, default="4bar", help='Length of segment to train on')
 parser.add_argument('--segment_step', type=cvt_time, default="1bar", help='Period at which segments may begin')
+parser.add_argument('--save-params-interval', type=int, default=5000, dest="train_save_params", help="Save parameters after this many iterations")
+parser.add_argument('--final-params-only', action="store_const", const=None, dest="train_save_params", help="Don't save parameters while training, only at the end.")
 resume_group = parser.add_mutually_exclusive_group()
 resume_group.add_argument('--resume', nargs=2, metavar=('TIMESTEP', 'PARAMFILE'), default=None, help='Where to restore from: timestep, and file to load')
 resume_group.add_argument('--resume_auto', action='store_true', help='Automatically restore from a previous run using output directory')
