@@ -16,6 +16,9 @@ $ python3 main.py [general arguments] MODELTYPE [model-specific arguments]
   --validation VALIDATION
                         Path to validation dataset folder (with .ls files)
                         (default: None)
+  --validation_generate_ct VALIDATION_GENERATE_CT
+                        Number of samples to generate at each validation time.
+                        (default: 1)
   --outputdir OUTPUTDIR
                         Path to output folder (default: output)
   --check_nan           Check for nans during execution (default: False)
@@ -30,6 +33,9 @@ $ python3 main.py [general arguments] MODELTYPE [model-specific arguments]
                         Length of segment to train on (default: 4bar)
   --segment_step SEGMENT_STEP
                         Period at which segments may begin (default: 1bar)
+  --save-params-interval TRAIN_SAVE_PARAMS
+                        Save parameters after this many iterations (default:
+                        5000)
   --resume TIMESTEP PARAMFILE
                         Where to restore from: timestep, and file to load
                         (default: None)
@@ -44,6 +50,8 @@ $ python3 main.py [general arguments] MODELTYPE [model-specific arguments]
                         use 'bar' as a unit. Should be used with restore.
                         (default: None)
 ```
+
+If you pass a validation folder to `--validation`, then each time it saves parameters, it will also generate samples over the pieces in the validation directory (similar to `--generate_over`). By default, it generates once over each piece in the validation folder, but this can be changed using `--validation_generate_ct`.
 
 ## Model Types
 
@@ -164,6 +172,12 @@ Train a product-of-experts generative model as before, but split each leadsheet 
 
 ```
 $ python3 main.py --dataset datasets/my_dataset --outputdir output_my_dataset  --resume_auto --segment_len 8bar --segment_step 4bar poex
+```
+
+Train a product-of-experts generative model as before, but save parameters every 100 iterations, and generate samples over a validation dataset:
+
+```
+$ python3 main.py --dataset datasets/my_dataset --outputdir output_my_dataset --resume_auto --save-params-interval 100 --validation datasets/validation_dataset poex
 ```
 
 Generate some leadsheets using a trained product-of-experts model, sampling from the dataset:
