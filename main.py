@@ -140,6 +140,19 @@ def main(modeltype, batch_size, iterations, learning_rate, segment_len, segment_
     should_setup = not generate
     unroll_batch_num = None if generate else training.BATCH_SIZE
 
+    for dataset_dir in dataset:
+        if os.path.samefile(dataset_dir,outputdir):
+            print("WARNING: Directory {} passed as both dataset and output directory!".format(outputdir))
+            print("This may cause problems by adding generated samples to the dataset directory.")
+            while True:
+                result = input("Continue anyway? (y/n)")
+                if result == "y":
+                    break
+                elif result == "n":
+                    sys.exit(0)
+                else:
+                    print("Please type y or n")
+
     if generate_over is None:
         training.set_params(batch_size, segment_step, segment_len)
         leadsheets = [training.filter_leadsheets(training.find_leadsheets(d)) for d in dataset]
