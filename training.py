@@ -103,7 +103,15 @@ def validate(model, validation_leadsheets):
         accum_loss[k] /= VALIDATION_CT
     return accum_loss, accum_info
 
-def train(model,leadsheets,num_updates,outputdir,start=0,save_params_interval=5000,validation_leadsheets=None):
+def validate_generate(model, validation_leadsheets, generated_dir):
+    for lsfn in validation_leadsheets:
+        ch,mel = leadsheet.parse_leadsheet(lsfn)
+        batch = ([ch],[mel]), [lsfn]
+        curdir = os.path.join(generated_dir, os.path.splitext(os.path.basename(lsfn))[0])
+        os.makedirs(curdir)
+        generate(model, None, os.path.join(curdir, "generated"), with_vis=True, batch=batch)
+
+def train(model,leadsheets,num_updates,outputdir,start=0,save_params_interval=5000,validation_leadsheets=None,validation_generate_ct=1):
     stopflag = [False]
     def signal_handler(signame, sf):
         stopflag[0] = True
@@ -123,14 +131,11 @@ def train(model,leadsheets,num_updates,outputdir,start=0,save_params_interval=50
         if i % 10 == 0:
             print("update {}: {}, info {}".format(i,loss,pformat(infos)))
         if save_params_interval is not None and i % save_params_interval == 0:
-            generate(model, leadsheets, os.path.join(outputdir,'sample{}'.format(i)))
             pickle.dump(model.params,open(os.path.join(outputdir, 'params{}.p'.format(i)), 'wb'))
-            if validation_leadsheets is not None:
-                val_loss, val_infos = validate(model, validation_leadsheets)
-                print("Validation on {}: {}, info {}".format(i,val_loss,pformat(val_infos)))
-                with open(os.path.join(outputdir,'valid_data.csv'),'a') as f:
-                    if i == 1:
-                        f.write("iter, loss, " + ", ".join(k for k,v in sorted(val_infos.items())) + "\n")
-                    f.write("{}, {}, ".format(i,val_loss) + ", ".join(str(v) for k,v in sorted(val_infos.items())) + "\n")
+            if validation_leadsheets is None:
+                generate(model, leadsheets, os.path.join(outputdir,'sample{}'.format(i)))
+            else:
+                for gen_num in range(validation_generate_ct):
+                    validate_generate(model, validation_leadsheets, os.path.join(outputdir, "validation_{}_sample_{}".format(i,gen_num)))
     if not stopflag[0]:
         signal.signal(signal.SIGINT, old_handler)

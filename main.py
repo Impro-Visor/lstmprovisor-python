@@ -135,7 +135,7 @@ builders['compae'] = ModelBuilder('compae', build_compae, config_compae, 'A comp
 
 ###################################################################################################################
 
-def main(modeltype, batch_size, iterations, learning_rate, segment_len, segment_step, train_save_params, dataset=["dataset"], outputdir="output", validation=None, resume=None, resume_auto=False, check_nan=False, generate=False, generate_over=None, **model_kwargs):
+def main(modeltype, batch_size, iterations, learning_rate, segment_len, segment_step, train_save_params, dataset=["dataset"], outputdir="output", validation=None, validation_generate_ct=1, resume=None, resume_auto=False, check_nan=False, generate=False, generate_over=None, **model_kwargs):
     generate = generate or (generate_over is not None)
     should_setup = not generate
     unroll_batch_num = None if generate else training.BATCH_SIZE
@@ -159,6 +159,11 @@ def main(modeltype, batch_size, iterations, learning_rate, segment_len, segment_
     else:
         # Don't bother loading leadsheets, we don't need them
         leadsheets = []
+
+    if validation is not None:
+        validation_leadsheets = training.filter_leadsheets(training.find_leadsheets(validation))
+    else:
+        validation_leadsheets = None
 
     m = builders[modeltype].build(should_setup, check_nan, unroll_batch_num, **model_kwargs)
     m.set_learning_rate(learning_rate)
@@ -217,7 +222,7 @@ def main(modeltype, batch_size, iterations, learning_rate, segment_len, segment_
         end_time = time.process_time()
         print("Generation took {} seconds.".format(end_time-start_time))
     else:
-        training.train(m, leadsheets, iterations, outputdir, start_idx, train_save_params, validation_leadsheets=validation)
+        training.train(m, leadsheets, iterations, outputdir, start_idx, train_save_params, validation_leadsheets=validation_leadsheets, validation_generate_ct=validation_generate_ct)
         pickle.dump( m.params, open( os.path.join(outputdir, "final_params.p"), "wb" ) )
 
 def cvt_time(s):
@@ -229,6 +234,7 @@ def cvt_time(s):
 parser = argparse.ArgumentParser(description='Train a neural network model.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--dataset', nargs="+", default=['dataset'], help='Path(s) to dataset folder (with .ls files). If multiple are passed, samples randomly from each')
 parser.add_argument('--validation', help='Path to validation dataset folder (with .ls files)')
+parser.add_argument('--validation_generate_ct', type=int, default=1, help='Number of samples to generate at each validation time.')
 parser.add_argument('--outputdir', default='output', help='Path to output folder')
 parser.add_argument('--check_nan', action='store_true', help='Check for nans during execution')
 parser.add_argument('--batch_size', type=int, default=10, help='Size of batch')
