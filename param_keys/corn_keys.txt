@@ -1,3 +1,4 @@
+name_generator
 lstm_input_w
 lstm_input_b
 lstm_forget_w

@@ -14,6 +14,7 @@ def main(file, precision, keys=None, output=None, make_zip=False):
         output = os.path.splitext(file)[0] + (".ctome" if make_zip else "-raw")
 
     with open(keys,'r') as f:
+        config_info = f.readline()
         key_names = f.readlines()
     assert len(key_names) == len(params), "Wrong number of keys for params! {} keys, {} params".format(len(key_names), len(params))
 
@@ -24,9 +25,12 @@ def main(file, precision, keys=None, output=None, make_zip=False):
                 with io.BytesIO() as str_capture:
                     np.savetxt(str_capture, val, fmt=fmt, delimiter=",")
                     zfile.writestr("param_{}.csv".format(name.strip()), str_capture.getvalue())
+            zfile.writestr("config.txt", config_info)
     else:
         for name,val in zip(key_names, param_vals):
             np.savetxt("{}_{}.csv".format(output,name.strip()), val, fmt=fmt, delimiter=",")
+        with open("{}_config.txt".format(output), 'w') as f:
+            f.write(config_info)
 
 parser = argparse.ArgumentParser(description='Convert a python parameters file into an Impro-Visor connectome file')
 parser.add_argument('file', help='File to process')

@@ -1,3 +1,4 @@
+autoencoder_absolute
 enc_lstm1_input_w
 enc_lstm1_input_b
 enc_lstm1_forget_w

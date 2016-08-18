@@ -1,3 +1,4 @@
+generative_product_interval_chords
 0_lstm1_input_w
 0_lstm1_input_b
 0_lstm1_forget_w
