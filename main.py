@@ -155,7 +155,7 @@ builders['compae'] = ModelBuilder('compae', build_compae, config_compae, 'A comp
 
 ###################################################################################################################
 
-def main(modeltype, batch_size, iterations, learning_rate, segment_len, segment_step, train_save_params, dataset=["dataset"], outputdir="output", validation=None, validation_generate_ct=1, resume=None, resume_auto=False, check_nan=False, generate=False, generate_over=None, **model_kwargs):
+def main(modeltype, batch_size, iterations, learning_rate, segment_len, segment_step, train_save_params, dataset=["dataset"], outputdir="output", validation=None, validation_generate_ct=1, resume=None, resume_auto=False, check_nan=False, generate=False, generate_over=None, auto_connectome_keys=None, **model_kwargs):
     generate = generate or (generate_over is not None)
     should_setup = not generate
     unroll_batch_num = None if generate else training.BATCH_SIZE
@@ -242,7 +242,7 @@ def main(modeltype, batch_size, iterations, learning_rate, segment_len, segment_
         end_time = time.process_time()
         print("Generation took {} seconds.".format(end_time-start_time))
     else:
-        training.train(m, leadsheets, iterations, outputdir, start_idx, train_save_params, validation_leadsheets=validation_leadsheets, validation_generate_ct=validation_generate_ct)
+        training.train(m, leadsheets, iterations, outputdir, start_idx, train_save_params, validation_leadsheets=validation_leadsheets, validation_generate_ct=validation_generate_ct, auto_connectome_keys=auto_connectome_keys)
         pickle.dump( m.params, open( os.path.join(outputdir, "final_params.p"), "wb" ) )
 
 def cvt_time(s):
@@ -264,6 +264,7 @@ parser.add_argument('--segment_len', type=cvt_time, default="4bar", help='Length
 parser.add_argument('--segment_step', type=cvt_time, default="1bar", help='Period at which segments may begin')
 parser.add_argument('--save-params-interval', type=int, default=5000, dest="train_save_params", help="Save parameters after this many iterations")
 parser.add_argument('--final-params-only', action="store_const", const=None, dest="train_save_params", help="Don't save parameters while training, only at the end.")
+parser.add_argument('--auto_connectome_keys', help='Path to keys for running param_cvt. If given, will run param_cvt automatically for each saved parameters file.')
 resume_group = parser.add_mutually_exclusive_group()
 resume_group.add_argument('--resume', nargs=2, metavar=('TIMESTEP', 'PARAMFILE'), default=None, help='Where to restore from: timestep, and file to load')
 resume_group.add_argument('--resume_auto', action='store_true', help='Automatically restore from a previous run using output directory')

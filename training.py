@@ -6,6 +6,8 @@ import signal
 import leadsheet
 import constants
 
+import param_cvt
+
 import pickle as pickle
 
 import traceback
@@ -111,7 +113,7 @@ def validate_generate(model, validation_leadsheets, generated_dir):
         os.makedirs(curdir)
         generate(model, None, os.path.join(curdir, "generated"), with_vis=True, batch=batch)
 
-def train(model,leadsheets,num_updates,outputdir,start=0,save_params_interval=5000,validation_leadsheets=None,validation_generate_ct=1):
+def train(model,leadsheets,num_updates,outputdir,start=0,save_params_interval=5000,validation_leadsheets=None,validation_generate_ct=1,auto_connectome_keys=None):
     stopflag = [False]
     def signal_handler(signame, sf):
         stopflag[0] = True
@@ -131,7 +133,10 @@ def train(model,leadsheets,num_updates,outputdir,start=0,save_params_interval=50
         if i % 10 == 0:
             print("update {}: {}, info {}".format(i,loss,pformat(infos)))
         if save_params_interval is not None and i % save_params_interval == 0:
-            pickle.dump(model.params,open(os.path.join(outputdir, 'params{}.p'.format(i)), 'wb'))
+            paramfile = os.path.join(outputdir, 'params{}.p'.format(i))
+            pickle.dump(model.params,open(paramfile, 'wb'))
+            if auto_connectome_keys is not None:
+                param_cvt.main(paramfile, 18, auto_connectome_keys, make_zip=True)
             if validation_leadsheets is None:
                 generate(model, leadsheets, os.path.join(outputdir,'sample{}'.format(i)))
             else:

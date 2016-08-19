@@ -36,6 +36,12 @@ $ python3 main.py [general arguments] MODELTYPE [model-specific arguments]
   --save-params-interval TRAIN_SAVE_PARAMS
                         Save parameters after this many iterations (default:
                         5000)
+  --final-params-only   Don't save parameters while training, only at the end.
+                        (default: None)
+  --auto_connectome_keys AUTO_CONNECTOME_KEYS
+                        Path to keys for running param_cvt. If given, will run
+                        param_cvt automatically for each saved parameters
+                        file. (default: None)
   --resume TIMESTEP PARAMFILE
                         Where to restore from: timestep, and file to load
                         (default: None)
