@@ -83,14 +83,27 @@ This is the type of generative model available in Impro-Visor.
 ```
   -h, --help            show this help message and exit
   --per_note  Enable note memory cells
-  --layer_size LAYER_SIZE
-                        Layer size of the LSTMs. Only works without note
+  --separate_rhythm     Use a separate rhythm expert. Only works without note
                         memory cells
-  --num_layers NUM_LAYERS
-                        Number of LSTM layers. Only works without note memory
-                        cells
+  --layer_size LAYER_SIZE [LAYER_SIZE ...]
+                        Layer size of the LSTMs. Either pass a single number
+                        to be used for all experts, or a sequence of numbers,
+                        one for each expert. Only works without note memory
+                        cells.
+  --num_layers NUM_LAYERS [NUM_LAYERS ...]
+                        Number of LSTM layers. Either pass a single number to
+                        be used for all experts, or a sequence of numbers, one
+                        for each expert. Only works without note memory cells
+  --skip_training_experts EXPERT_INDEX [EXPERT_INDEX ...]
+                        Skip training these experts
 ```
 `--per_note` enables memory cells which are fixed to particular notes and do not shift with the rest of the network. Although these were investigated as being potentially useful, they did not give a significant advantage and were not implemented in Impro-Visor for simplicity. If you wish to train a model for Impro-Visor, do not use the `--per_note` flag.
+
+`--separate_rhythm` configures the network to delegate rhythm to a third expert, and use the other two experts for pitch choices only.
+
+The `--layer_size` and `--num_layers` parameters give the layer sizes and number of layers used for each expert. They can be passed either a single number, used for all experts, or a list of numbers, one per expert. The order of experts is interval, chord, (optionally) rhythm.
+
+Using `--skip_training_experts`, you can specify particular experts to not train. This is useful if you are resuming from an already-partially-trained parameters file. Experts are passed by index.
 
 ###`compae`: A compressing autoencoder model
 This is the type of trading model available in Impro-Visor.

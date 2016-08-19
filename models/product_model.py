@@ -19,10 +19,12 @@ from theano.compile.nanguardmode import NanGuardMode
 
 
 class ProductOfExpertsModel(object):
-    def __init__(self, encodings, all_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False, unroll_batch_num=None, bounds=constants.BOUNDS):
+    def __init__(self, encodings, all_layer_sizes, inputs=None, shift_modes=None, dropout=0, setup=False, nanguard=False, unroll_batch_num=None, bounds=constants.BOUNDS, normalize_artic_only=False, skip_training_experts=[]):
         self.encodings = encodings
 
         self.bounds = bounds
+        self.normalize_artic_only = normalize_artic_only
+        self.skip_training_experts = skip_training_experts
         
         if shift_modes is None:
             shift_modes = ["drop"]*len(encodings)
@@ -71,6 +73,9 @@ class ProductOfExpertsModel(object):
             del mycopy[:len(lstmstack.params)]
         assert len(mycopy) == 0
 
+    def get_optimize_params(self):
+        return list(itertools.chain(*(lstmstack.params for i,lstmstack in enumerate(self.lstmstacks) if i not in self.skip_training_experts)))
+
     def set_learning_rate(self, lr):
         self.learning_rate_var.set_value(np.array(lr, theano.config.floatX))
 
@@ -107,13 +112,21 @@ class ProductOfExpertsModel(object):
                 out_probs = encoding.decode_to_probs(activations, relative_pos, self.bounds.lowbound, self.bounds.highbound)
                 all_out_probs.append(out_probs)
             reduced_out_probs = functools.reduce((lambda x,y: x*y), all_out_probs)
-            normsum = T.sum(reduced_out_probs, 2, keepdims=True)
-            normsum = T.maximum(normsum, constants.EPSILON)
-            norm_out_probs = reduced_out_probs/normsum
+            if self.normalize_artic_only:
+                non_artic_probs = reduced_out_probs[:,:,:2]
+                artic_probs = reduced_out_probs[:,:,2:]
+                non_artic_sum = T.sum(non_artic_probs, 2, keepdims=True)
+                artic_sum = T.sum(artic_probs, 2, keepdims=True)
+                norm_artic_probs = artic_probs*(1-non_artic_sum)/artic_sum
+                norm_out_probs = T.concatenate([non_artic_probs, norm_artic_probs], 2)
+            else:
+                normsum = T.sum(reduced_out_probs, 2, keepdims=True)
+                normsum = T.maximum(normsum, constants.EPSILON)
+                norm_out_probs = reduced_out_probs/normsum
             return Encoding.compute_loss(norm_out_probs, correct_notes, True)
 
         train_loss, train_info = _build(False)
-        updates = Adam(train_loss, self.params, lr=self.learning_rate_var)
+        updates = Adam(train_loss, self.get_optimize_params(), lr=self.learning_rate_var)
 
         eval_loss, eval_info = _build(True)
 
@@ -124,12 +137,14 @@ class ProductOfExpertsModel(object):
             outputs=[train_loss]+list(train_info.values()),
             updates=updates,
             allow_input_downcast=True,
+            on_unused_input='ignore',
             mode=(NanGuardMode(nan_is_error=True, inf_is_error=True, big_is_error=True) if self.nanguard else None))
 
         self.eval_fun = theano.function(
             inputs=[chord_types, chord_roots, correct_notes] + relative_posns + encoded_melodies,
             outputs=[eval_loss]+list(eval_info.values()),
             allow_input_downcast=True,
+            on_unused_input='ignore',
             mode=(NanGuardMode(nan_is_error=True, inf_is_error=True, big_is_error=True) if self.nanguard else None))
 
     def _assemble_batch(self, melody, chords):
@@ -186,7 +201,7 @@ class ProductOfExpertsModel(object):
                                                     deterministic_dropout=True )
                     for lstmstack, encoding in zip(self.lstmstacks, self.encodings)]
 
-        updates, all_chosen, all_probs, indiv_probs = helper_generate_from_spec(specs, self.lstmstacks, self.encodings, self.srng, n_batch, n_time, self.bounds)
+        updates, all_chosen, all_probs, indiv_probs = helper_generate_from_spec(specs, self.lstmstacks, self.encodings, self.srng, n_batch, n_time, self.bounds, self.normalize_artic_only)
 
         self.generate_fun = theano.function(
             inputs=[chord_roots, chord_types],
@@ -234,7 +249,7 @@ class ProductOfExpertsModel(object):
     def produce(self, chords, melody):
         return self.generate_visualize(chords)
 
-def helper_generate_from_spec(specs, lstmstacks, encodings, srng, n_batch, n_time, bounds):
+def helper_generate_from_spec(specs, lstmstacks, encodings, srng, n_batch, n_time, bounds, normalize_artic_only=False):
     """Helper function to generate through a product LSTM model"""
     def _scan_fn(*inputs):
         # inputs is [ spec_sequences..., last_absolute_position, spec_taps..., spec_non_sequences... ]
@@ -269,9 +284,17 @@ def helper_generate_from_spec(specs, lstmstacks, encodings, srng, n_batch, n_tim
             all_out_probs.append(out_probs)
 
         reduced_out_probs = functools.reduce((lambda x,y: x*y), all_out_probs)
-        normsum = T.sum(reduced_out_probs, 1, keepdims=True)
-        normsum = T.maximum(normsum, constants.EPSILON)
-        norm_out_probs = reduced_out_probs/normsum
+        if normalize_artic_only:
+            non_artic_probs = reduced_out_probs[:,:2]
+            artic_probs = reduced_out_probs[:,2:]
+            non_artic_sum = T.sum(non_artic_probs, 1, keepdims=True)
+            artic_sum = T.sum(artic_probs, 1, keepdims=True)
+            norm_artic_probs = artic_probs*(1-non_artic_sum)/artic_sum
+            norm_out_probs = T.concatenate([non_artic_probs, norm_artic_probs], 1)
+        else:
+            normsum = T.sum(reduced_out_probs, 1, keepdims=True)
+            normsum = T.maximum(normsum, constants.EPSILON)
+            norm_out_probs = reduced_out_probs/normsum
 
         sampled_note = Encoding.sample_absolute_probs(srng, norm_out_probs)
 

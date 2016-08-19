@@ -5,7 +5,7 @@ import os
 import collections
 
 from models import SimpleModel, ProductOfExpertsModel, CompressiveAutoencoderModel
-from note_encodings import AbsoluteSequentialEncoding, RelativeJumpEncoding, ChordRelativeEncoding, CircleOfThirdsEncoding
+from note_encodings import AbsoluteSequentialEncoding, RelativeJumpEncoding, ChordRelativeEncoding, CircleOfThirdsEncoding, RhythmOnlyEncoding
 from queue_managers import StandardQueueManager, VariationalQueueManager, SamplingVariationalQueueManager, QueuelessVariationalQueueManager, QueuelessStandardQueueManager, NearnessStandardQueueManager, NoiseWrapper
 import input_parts
 import leadsheet
@@ -43,17 +43,37 @@ builders['simple'] = ModelBuilder('simple', build_simple, config_simple, 'A simp
 
 #######################
 
-def build_poex(should_setup, check_nan, unroll_batch_num, no_per_note, layer_size, num_layers):
+def build_poex(should_setup, check_nan, unroll_batch_num, no_per_note, layer_size, num_layers, separate_rhythm, skip_training_experts):
     encs = [RelativeJumpEncoding(), ChordRelativeEncoding()]
-    sizes = [[(layer_size,0)]*num_layers]*2 if no_per_note else [[(200,10),(200,10)], [(200,10),(200,10)]]
+    if separate_rhythm:
+        encs = [RelativeJumpEncoding(with_artic=False), ChordRelativeEncoding(with_artic=False), RhythmOnlyEncoding()]
+        shift_modes = ["drop","roll","drop"]
+    else:
+        encs = [RelativeJumpEncoding(), ChordRelativeEncoding()]
+        shift_modes = ["drop","roll"]
 
-    return ProductOfExpertsModel(encs, sizes, shift_modes=["drop","roll"],
-        dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num)
+    if no_per_note:
+        if len(layer_size) == 1:
+            layer_size = layer_size*len(encs)
+        assert len(layer_size) == len(encs)
+        if len(num_layers) == 1:
+            num_layers = num_layers*len(encs)
+        assert len(num_layers) == len(encs)
+
+        sizes = [[(ls,0)]*nl for ls, nl in zip(layer_size, num_layers)]
+    else:
+        sizes = [[(200,10),(200,10)]]*len(encs)
+
+    return ProductOfExpertsModel(encs, sizes, shift_modes=shift_modes,
+        dropout=0.5, setup=should_setup, nanguard=check_nan, unroll_batch_num=unroll_batch_num,
+        normalize_artic_only=separate_rhythm, skip_training_experts=skip_training_experts)
 
 def config_poex(parser):
     parser.add_argument('--per_note', dest="no_per_note", action="store_false", help='Enable note memory cells')
-    parser.add_argument('--layer_size', type=int, default=300, help='Layer size of the LSTMs. Only works without note memory cells')
-    parser.add_argument('--num_layers', type=int, default=2, help='Number of LSTM layers. Only works without note memory cells')
+    parser.add_argument('--separate_rhythm', action="store_true", help='Use a separate rhythm expert. Only works without note memory cells')
+    parser.add_argument('--layer_size', nargs="+", type=int, default=[300], help='Layer size of the LSTMs. Either pass a single number to be used for all experts, or a sequence of numbers, one for each expert. Only works without note memory cells.')
+    parser.add_argument('--num_layers', nargs="+", type=int, default=[2], help='Number of LSTM layers. Either pass a single number to be used for all experts, or a sequence of numbers, one for each expert. Only works without note memory cells')
+    parser.add_argument('--skip_training_experts', nargs="+", type=int, default=[], metavar="EXPERT_INDEX", help='Skip training these experts')
 
 builders['poex'] = ModelBuilder('poex', build_poex, config_poex, 'A product-of-experts LSTM sequential model, using note and chord relative encodings.')
 

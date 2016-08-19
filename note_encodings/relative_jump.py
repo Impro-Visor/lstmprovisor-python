@@ -37,7 +37,10 @@ class RelativeJumpEncoding( Encoding ):
     STARTING_POSITION = 72
 
     ENCODING_WIDTH = 1 + 1 + WINDOW_SIZE
-    RAW_ENCODING_WIDTH = ENCODING_WIDTH
+
+    def __init__(self, with_artic=True):
+        self.with_artic = with_artic
+        self.RAW_ENCODING_WIDTH = self.WINDOW_SIZE + (2 if with_artic else 0)
 
     def encode_melody_and_position(self, melody, chords):
 
@@ -88,8 +91,11 @@ class RelativeJumpEncoding( Encoding ):
             # cprobs = theano.printing.Print("cprobs",['shape'])(cprobs)
             # cpos = theano.printing.Print("cpos",['shape'])(cpos)
 
-            abs_probs = cprobs[:2]
-            rel_probs = cprobs[2:]
+            if self.with_artic:
+                abs_probs = cprobs[:2]
+                rel_probs = cprobs[2:]
+            else:
+                rel_probs = cprobs
 
             # abs_probs = theano.printing.Print("abs_probs",['shape'])(abs_probs)
             # rel_probs = theano.printing.Print("rel_probs",['shape'])(rel_probs)
@@ -119,9 +125,16 @@ class RelativeJumpEncoding( Encoding ):
             # endpadding = theano.printing.Print("endpadding",['shape','__str__'])(endpadding)
 
             cropped = rel_probs[startidx:endidx]
-            normalize_sum = T.sum(cropped) + T.sum(abs_probs)
-            normalize_sum = T.maximum(normalize_sum, constants.EPSILON)
-            padded = T.concatenate([abs_probs/normalize_sum, T.zeros((startpadding,)), cropped/normalize_sum, T.zeros((endpadding,))], 0)
+
+            if self.with_artic:
+                normalize_sum = T.sum(cropped) + T.sum(abs_probs)
+                normalize_sum = T.maximum(normalize_sum, constants.EPSILON)
+                padded = T.concatenate([abs_probs/normalize_sum, T.zeros((startpadding,)), cropped/normalize_sum, T.zeros((endpadding,))], 0)
+            else:
+                normalize_sum = T.sum(cropped)
+                normalize_sum = T.maximum(normalize_sum, constants.EPSILON)
+                padded = T.concatenate([T.ones((2,)), T.zeros((startpadding,)), cropped/normalize_sum, T.zeros((endpadding,))], 0)
+
             # padded = theano.printing.Print("padded",['shape'])(padded)
             return padded
 

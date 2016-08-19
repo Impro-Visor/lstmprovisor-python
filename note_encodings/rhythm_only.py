@@ -9,27 +9,22 @@ import constants
 import leadsheet
 import math
 
-class ChordRelativeEncoding( Encoding ):
+class RhythmOnlyEncoding( Encoding ):
     """
-    An encoding based on the chord. Encoding format is a one-hot
+    An encoding that only encodes rhythm, of the form
 
     [
 
         rest,                   \
         continue,                } (a softmax set of excl probs) 
-        play x 12,     /
+        articulate,             /
 
     ]
-
-    where play is relative to the chord root
     """
 
-    ENCODING_WIDTH = 1 + 1 + 12
+    ENCODING_WIDTH = 3
     WINDOW_SIZE = 12
-
-    def __init__(self, with_artic=True):
-        self.with_artic = with_artic
-        self.RAW_ENCODING_WIDTH = self.WINDOW_SIZE + (2 if with_artic else 0)
+    RAW_ENCODING_WIDTH = 3
 
     def encode_melody_and_position(self, melody, chords):
 
@@ -40,14 +35,12 @@ class ChordRelativeEncoding( Encoding ):
         for note, dur in melody:
             root, ctype = chords[time]
             if note is None:
-                encoded_form.append([1]+[0]+[0]*self.WINDOW_SIZE)
+                encoded_form.append([1,0,0])
             else:
-                index = (note - root)%self.WINDOW_SIZE
-                encoded_form.append([0]+[0]+[1 if i==index else 0 for i in range(self.WINDOW_SIZE)])
+                encoded_form.append([0,0,1])
 
             for _ in range(dur-1):
-                rcp = [1 if note is None else 0] + [0 if note is None else 1] + [0]*self.WINDOW_SIZE
-                encoded_form.append(rcp)
+                encoded_form.append([1,0,0] if note is None else [0,1,0])
             time += dur
 
         positions = [root for root,ctype in chords]
@@ -59,31 +52,14 @@ class ChordRelativeEncoding( Encoding ):
         n_parallel = squashed.shape[0]
         probs = T.nnet.softmax(squashed)
 
+        abs_probs = probs[:,:2]
+        artic_prob = probs[:,2:]
+        repeated_artic_probs = T.tile(artic_prob, (1,high_bound-low_bound))
 
-        def _scan_fn(cprobs, cpos):
+        full_probs = T.concatenate([abs_probs,repeated_artic_probs],1)
 
-            if self.with_artic:
-                abs_probs = cprobs[:2]
-                rel_probs = cprobs[2:]
-            else:
-                rel_probs = cprobs
-                abs_probs = T.ones((2,))
-
-            aligned = T.roll(rel_probs, (cpos-low_bound)%12)
-
-            num_tile = int(math.ceil((high_bound-low_bound)/self.WINDOW_SIZE))
-
-            tiled = T.tile(aligned, (num_tile,))[:(high_bound-low_bound)]
-
-            full = T.concatenate([abs_probs, tiled], 0)
-            return full
-
-        # probs = theano.printing.Print("probs",['shape'])(probs)
-        # relative_position = theano.printing.Print("relative_position",['shape'])(relative_position)
-        from_scan, _ = theano.map(fn=_scan_fn, sequences=[probs, T.flatten(relative_position)])
-        # from_scan = theano.printing.Print("from_scan",['shape'])(from_scan)
         newshape = T.concatenate([activations.shape[:-1],[2+high_bound-low_bound]],0)
-        fixed = T.reshape(from_scan, newshape, ndim=activations.ndim)
+        fixed = T.reshape(full_probs, newshape, ndim=activations.ndim)
         return fixed
 
     def note_to_encoding(self, chosen_note, relative_position, low_bound, high_bound):
@@ -99,7 +75,7 @@ class ChordRelativeEncoding( Encoding ):
                 sampled from encoded_probs. Should have the same representation as encoded_form from
                 encode_melody
         """
-        new_idx = T.switch(chosen_note<2, chosen_note, (chosen_note-2+low_bound-relative_position)%self.WINDOW_SIZE + 2)
+        new_idx = T.switch(chosen_note<2, chosen_note, 2)
         sampled_output = T.extra_ops.to_one_hot(new_idx, self.ENCODING_WIDTH)
         return sampled_output
 
@@ -107,4 +83,4 @@ class ChordRelativeEncoding( Encoding ):
         return cur_chord_root
 
     def initial_encoded_form(self):
-        return np.array([1]+[0]+[0]*self.WINDOW_SIZE, np.float32)
+        return np.array([1,0,0], np.float32)
